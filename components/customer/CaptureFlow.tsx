@@ -26,6 +26,9 @@ const DEADLINES: Array<{ label: string; value: RelativeDeadline }> = [
 
 const chipBase =
   'inline-flex min-h-12 items-center rounded-md border px-4 text-[15px] leading-tight transition-transform active:scale-[0.98]';
+const fieldBase =
+  'w-full rounded-md border border-line text-[17px] focus:border-ink focus-visible:outline-2 focus-visible:outline-offset-2';
+const noticeBox = 'rounded-lg border border-warn/50 bg-warn/10 px-4 py-3 text-[16px] leading-snug text-ink';
 const chipIdle = `${chipBase} border-line bg-white/50 text-ink`;
 const chipOn = `${chipBase} border-ink bg-ink text-white`;
 
@@ -302,7 +305,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[15px] font-medium">{shopName}</p>
-          <p className="mt-1 inline-block rounded-md border border-line px-2 py-0.5 text-[11px] text-muted">
+          <p className="mt-1 inline-block rounded-md border border-line px-2 py-0.5 text-[12px] text-muted">
             Demo shop: synthetic data
           </p>
         </div>
@@ -310,13 +313,10 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
       </header>
 
       {stage === 'capture' && (
-        <section className="mt-14 flex flex-1 flex-col">
-          <h1 className="font-display text-[2.6rem] font-semibold leading-[1.05]">Nahi mila? Bolo, kya chahiye.</h1>
-          <p className="mt-4 text-[17px] leading-relaxed text-muted">
-            Dukaan ko bata denge. Stock aaya toh aapko pata chalega.
-          </p>
+        <section className="mt-8 flex flex-1 flex-col">
+          <h1 className="font-display text-[2.2rem] font-semibold leading-[1.05]">Nahi mila? Bolo, kya chahiye.</h1>
 
-          <div className="mt-12 flex flex-col items-center">
+          <div className="mt-8 flex flex-col items-center">
             <VoiceRecorder onRecorded={onRecorded} onError={onRecordError} disabled={transcribing} />
             {transcribing && (
               <p className="mt-4 text-[15px] text-muted" aria-live="polite">
@@ -325,18 +325,22 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
             )}
           </div>
 
+          <p className="mt-8 text-center text-[16px] leading-relaxed text-muted">
+            Dukaan ko bata denge. Stock aaya toh aapko pata chalega.
+          </p>
+
           {notice && (
-            <p className="mt-8 rounded-md border border-line bg-white/50 px-4 py-3 text-[15px]" role="status">
+            <p className={`mt-6 ${noticeBox}`} role="status">
               {notice}
             </p>
           )}
 
-          <div className="mt-8">
+          <div className="mt-6">
             {!typing ? (
               <button
                 type="button"
                 onClick={() => setTyping(true)}
-                className="min-h-12 text-[16px] underline decoration-line underline-offset-4"
+                className="min-h-12 w-full rounded-md border border-line px-4 text-[16px] text-ink transition-transform active:scale-[0.98]"
               >
                 Likh ke batayein
               </button>
@@ -352,7 +356,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
                   onChange={(e) => (draftRef.current = e.target.value)}
                   rows={4}
                   placeholder="Remote wali gaadi, rechargeable, 1000 ke andar, kal tak"
-                  className="w-full resize-none rounded-md border border-line bg-white/60 p-4 text-[17px] leading-relaxed outline-none focus:border-ink"
+                  className={`${fieldBase} resize-none bg-white/60 p-4 leading-relaxed`}
                 />
                 <button
                   type="button"
@@ -381,9 +385,9 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={3}
-              className="w-full resize-none rounded-md border border-line bg-white/60 p-4 text-[17px] leading-relaxed outline-none focus:border-ink"
+              className={`${fieldBase} resize-none bg-white/60 p-4 leading-relaxed`}
             />
-            <button type="button" onClick={startOver} className="min-h-12 self-start text-[15px] text-muted underline underline-offset-4">
+            <button type="button" onClick={startOver} className="min-h-11 self-start px-1 text-[15px] text-muted underline underline-offset-4">
               Dobara bolein
             </button>
           </div>
@@ -409,21 +413,21 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
                   value={eff.item ?? ''}
                   onChange={(e) => setEdits((ed) => ({ ...ed, item: e.target.value }))}
                   placeholder="Kya chahiye"
-                  className="min-h-12 w-full rounded-md border border-line bg-white/70 px-4 text-[17px] outline-none focus:border-ink"
+                  className={`${fieldBase} min-h-12 bg-white/70 px-4`}
                 />
               </label>
 
               {eff.base.hard_constraints.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {eff.base.hard_constraints.map((c) => (
-                    <span key={c} className="inline-flex min-h-10 items-center rounded-md border border-line px-3 text-[15px]">
+                    <span key={c} className="inline-flex min-h-11 items-center rounded-md border border-line px-3 text-[15px]">
                       {c.replace(/_/g, ' ').replace(':', ': ')}
                     </span>
                   ))}
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 <button type="button" className={open === 'budget' ? chipOn : chipIdle} onClick={() => setOpen(open === 'budget' ? null : 'budget')}>
                   {budgetText ?? (budgetAsked ? 'Budget: koi bhi' : 'Budget batayein')}
                 </button>
@@ -433,7 +437,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
               </div>
 
               {open === 'budget' && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {BUDGETS.map((b) => (
                     <button key={b.label} type="button" className={eff.max_budget === b.value && budgetAsked ? chipOn : chipIdle} onClick={() => pickBudget(b.value)}>
                       {b.label}
@@ -442,7 +446,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
                 </div>
               )}
               {open === 'deadline' && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-3">
                   {DEADLINES.map((d) => (
                     <button key={d.value} type="button" className={answers.needed_by === d.value ? chipOn : chipIdle} onClick={() => pickDeadline(d.value)}>
                       {d.label}
@@ -452,7 +456,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
               )}
 
               {answers.needed_by && answers.needed_by !== 'none' && eff.needed_by && (
-                <p className="text-[14px] text-muted">Tareekh: {formatDeadline(eff.needed_by, today)}</p>
+                <p className="text-[15px] text-muted">Tareekh: {formatDeadline(eff.needed_by, today)}</p>
               )}
             </div>
 
@@ -460,7 +464,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
               <div className="mt-5 border-t border-line pt-4">
                 <p className="text-[17px] leading-snug">{result?.clarifying_question}</p>
                 {eff.needBudget && (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-3">
                     {BUDGETS.map((b) => (
                       <button key={b.label} type="button" className={chipIdle} onClick={() => pickBudget(b.value)}>
                         {b.label}
@@ -469,7 +473,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
                   </div>
                 )}
                 {eff.needDeadline && (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-3">
                     {DEADLINES.map((d) => (
                       <button key={d.value} type="button" className={chipIdle} onClick={() => pickDeadline(d.value)}>
                         {d.label}
@@ -493,7 +497,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/[^\d ]/g, ''))}
               placeholder="10 digit number"
-              className="min-h-12 w-full rounded-md border border-line bg-white/60 px-4 text-[17px] outline-none focus:border-ink"
+              className={`${fieldBase} min-h-12 bg-white/60 px-4`}
             />
             <label className="flex min-h-12 items-center gap-3 text-[16px]">
               <input
@@ -505,13 +509,13 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
               Haan, stock aane par mujhe batana
             </label>
             {phoneEntered && !consent && (
-              <p className="text-[14px] text-muted">Number tabhi save hoga jab aap haan kahenge.</p>
+              <p className="text-[15px] text-muted">Number tabhi save hoga jab aap haan kahenge.</p>
             )}
           </div>
 
           <div className="flex flex-col gap-3">
             {submitError && (
-              <p className="rounded-md border border-line bg-white/50 px-4 py-3 text-[15px] text-danger" role="alert">
+              <p className="rounded-lg border border-danger/50 bg-danger/10 px-4 py-3 text-[16px] leading-snug text-ink" role="alert">
                 {submitError}
               </p>
             )}

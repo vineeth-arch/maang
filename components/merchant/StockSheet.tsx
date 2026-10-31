@@ -33,6 +33,7 @@ export function StockSheet({ cluster, ctx, onClose }: { cluster: Cluster; ctx: C
     ctx.toast(
       `${res.notified_count} customers ko bata diya${skipped.length ? ` (skipped: ${skipped.join(', ')})` : ''}`,
     );
+    if (res.notified_count > 0) ctx.announce?.(res.notified_count);
     onClose();
   }
 
@@ -43,29 +44,29 @@ export function StockSheet({ cluster, ctx, onClose }: { cluster: Cluster; ctx: C
       aria-label="Stock aa gaya"
       className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 p-0 sm:items-center sm:p-6"
     >
-      <div className="max-h-full w-full max-w-xl overflow-y-auto rounded-t-2xl border border-[#EEEAE0]/20 bg-[#17130F] p-6 sm:rounded-2xl">
+      <div className="max-h-full w-full max-w-xl overflow-y-auto rounded-t-2xl border border-board-fg/20 bg-board-bg p-6 sm:rounded-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="label-mono text-[#EEEAE0]/70">Stock aa gaya</p>
-            <h2 className="font-display mt-1 text-3xl font-semibold text-[#EEEAE0]">{cluster.label}</h2>
+            <p className="label-mono text-board-fg/70">Stock aa gaya</p>
+            <h2 className="font-display mt-1 text-3xl font-semibold text-board-fg">{cluster.label}</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="label-mono min-h-12 shrink-0 rounded-md border border-[#EEEAE0]/30 px-4 text-[#EEEAE0]"
+            className="label-mono min-h-12 shrink-0 rounded-md border border-board-fg/30 px-4 text-board-fg"
           >
             Band karo
           </button>
         </div>
 
         <fieldset className="mt-6">
-          <legend className="label-mono text-[#EEEAE0]/70">Product</legend>
+          <legend className="label-mono text-board-fg/70">Product</legend>
           <div className="mt-2 space-y-2">
             {cluster.eligible.map((p) => (
               <label
                 key={p.id}
                 className={`flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border px-4 py-2 ${
-                  p.id === productId ? 'border-[#EEEAE0]' : 'border-[#EEEAE0]/20'
+                  p.id === productId ? 'border-board-fg' : 'border-board-fg/20'
                 }`}
               >
                 <input
@@ -73,12 +74,12 @@ export function StockSheet({ cluster, ctx, onClose }: { cluster: Cluster; ctx: C
                   name="product"
                   checked={p.id === productId}
                   onChange={() => setProductId(p.id)}
-                  className="h-5 w-5 accent-[#EEEAE0]"
+                  className="h-5 w-5 accent-board-fg"
                 />
-                <span className="flex-1 text-lg text-[#EEEAE0]">
+                <span className="flex-1 text-lg text-board-fg">
                   {p.name} · {formatINR(p.price)}
                 </span>
-                <span className={`label-mono ${p.stock_available > 0 ? 'text-[#4CC38A]' : 'text-[#EEEAE0]/60'}`}>
+                <span className={`label-mono ${p.stock_available > 0 ? 'text-board-ok' : 'text-board-fg/60'}`}>
                   {p.stock_available} in stock
                 </span>
               </label>
@@ -87,23 +88,23 @@ export function StockSheet({ cluster, ctx, onClose }: { cluster: Cluster; ctx: C
         </fieldset>
 
         <div className="mt-6 flex items-center gap-3">
-          <span className="label-mono text-[#EEEAE0]/70">Quantity</span>
+          <span className="label-mono text-board-fg/70">Quantity</span>
           <button
             type="button"
             aria-label="Kam karo"
             disabled={qty <= 1}
             onClick={() => setQty((q) => Math.max(1, q - 1))}
-            className="h-12 w-12 rounded-md border border-[#EEEAE0]/30 text-2xl text-[#EEEAE0] disabled:opacity-40"
+            className="h-12 w-12 rounded-md border border-board-fg/30 text-2xl text-board-fg disabled:opacity-40"
           >
             −
           </button>
-          <span className="font-display w-12 text-center text-4xl font-semibold text-[#EEEAE0]">{qty}</span>
+          <span className="font-display w-12 text-center text-4xl font-semibold text-board-fg">{qty}</span>
           <button
             type="button"
             aria-label="Badhao"
             disabled={qty >= 50}
             onClick={() => setQty((q) => Math.min(50, q + 1))}
-            className="h-12 w-12 rounded-md border border-[#EEEAE0]/30 text-2xl text-[#EEEAE0] disabled:opacity-40"
+            className="h-12 w-12 rounded-md border border-board-fg/30 text-2xl text-board-fg disabled:opacity-40"
           >
             +
           </button>
@@ -111,24 +112,24 @@ export function StockSheet({ cluster, ctx, onClose }: { cluster: Cluster; ctx: C
             type="button"
             onClick={() => void save()}
             disabled={!chosen || ctx.busy.has(stockKey)}
-            className="ml-auto min-h-12 rounded-md border border-[#EEEAE0] px-6 text-lg font-semibold text-[#EEEAE0] disabled:opacity-50"
+            className="ml-auto min-h-12 rounded-md border border-board-fg px-6 text-lg font-semibold text-board-fg disabled:opacity-50"
           >
             {ctx.busy.has(stockKey) ? 'Saving…' : 'Save'}
           </button>
         </div>
-        {ctx.errors[stockKey] && <p className="label-mono mt-2 text-[#FF8A7A]">{ctx.errors[stockKey]}</p>}
+        {ctx.errors[stockKey] && <p className="label-mono mt-2 text-board-error">{ctx.errors[stockKey]}</p>}
 
         <button
           type="button"
           onClick={() => void notify()}
           disabled={!canNotify}
-          className="mt-8 min-h-14 w-full rounded-md bg-[#EEEAE0] px-6 text-xl font-semibold text-[#17130F] disabled:opacity-40"
+          className="mt-8 min-h-14 w-full rounded-md bg-board-fg px-6 text-xl font-semibold text-board-bg disabled:opacity-40"
         >
           Customers ko batao ({n})
         </button>
-        {ctx.errors[notifyKey] && <p className="label-mono mt-2 text-[#FF8A7A]">{ctx.errors[notifyKey]}</p>}
+        {ctx.errors[notifyKey] && <p className="label-mono mt-2 text-board-error">{ctx.errors[notifyKey]}</p>}
         {chosen !== null && chosen.stock_available === 0 && (
-          <p className="label-mono mt-2 text-[#EEEAE0]/70">Pehle stock save karo.</p>
+          <p className="label-mono mt-2 text-board-fg/70">Pehle stock save karo.</p>
         )}
       </div>
     </div>

@@ -163,6 +163,10 @@ export type StockResponse = { product: Product };
 export type NotifyBody = { cluster_key: string; product_id: string };
 export type NotifyResponse = { notified_count: number; skipped_no_consent: number; skipped_ineligible: number };
 
+// POST /api/merchant/[shop]/speak  (NEXT_PUBLIC_SOUNDBOX=1 only; returns audio bytes, or 503 voice_unavailable)
+// Server builds the text from the request's item_label and max_budget, or from count. Never free text.
+export type SpeakBody = { kind: 'new'; request_id: string } | { kind: 'notified'; count: number };
+
 // POST /api/merchant/[shop]/requests/[id]/pickup
 export type PickupResponse = { result: 'ok' | 'already' | 'not_reserved' };
 

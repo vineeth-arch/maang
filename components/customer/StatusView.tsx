@@ -16,6 +16,18 @@ const btnDark =
 const btnLine =
   'min-h-12 rounded-md border border-line px-6 text-[16px] transition-transform active:scale-[0.98] disabled:opacity-50';
 
+type Tone = 'ok' | 'warn' | 'danger' | 'muted';
+const BAND: Record<Tone, string> = { ok: 'bg-ok', warn: 'bg-warn', danger: 'bg-danger', muted: 'bg-muted' };
+
+function Status({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-line bg-white/50">
+      <div aria-hidden className={`h-2 ${BAND[tone]}`} />
+      <div className="p-5">{children}</div>
+    </div>
+  );
+}
+
 export default function StatusView({ id, t }: { id: string; t: string }) {
   const [view, setView] = useState<CustomerView | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -89,7 +101,11 @@ export default function StatusView({ id, t }: { id: string; t: string }) {
 
   let body: React.ReactNode;
   if (notFound) {
-    body = <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">Ye link sahi nahi hai.</h1>;
+    body = (
+      <Status tone="danger">
+        <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">Ye link sahi nahi hai.</h1>
+      </Status>
+    );
   } else if (!view) {
     body = <p className="text-[17px] text-muted">Dekh rahe hain…</p>;
   } else {
@@ -104,7 +120,7 @@ export default function StatusView({ id, t }: { id: string; t: string }) {
       confirming ? (
         <div className="mt-8 flex flex-col gap-3">
           <p className="text-[16px]">Pakka? Ye request band ho jaayegi.</p>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <button type="button" className={btnDark} disabled={busy} onClick={() => void act('cancel')}>
               {busy ? 'Ruko…' : 'Haan, band karo'}
             </button>
@@ -122,15 +138,19 @@ export default function StatusView({ id, t }: { id: string; t: string }) {
     if (view.expired) {
       body = (
         <>
-          <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">Ye request expire ho gayi</h1>
+          <Status tone="warn">
+            <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">Ye request expire ho gayi</h1>
+          </Status>
           {askedBlock}
         </>
       );
     } else if (view.status === 'open') {
       body = (
         <>
-          <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">Dukaan ko bata diya ✓</h1>
-          <p className="mt-3 text-[17px] text-muted">{view.shop_name} ko pata hai. Stock aate hi aapko khabar milegi.</p>
+          <Status tone="muted">
+            <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">Dukaan ko bata diya ✓</h1>
+            <p className="mt-3 text-[17px] text-muted">{view.shop_name} ko pata hai. Stock aate hi aapko khabar milegi.</p>
+          </Status>
           {askedBlock}
           {cancelBlock('No longer needed')}
         </>
@@ -138,18 +158,20 @@ export default function StatusView({ id, t }: { id: string; t: string }) {
     } else if (view.status === 'notified') {
       body = (
         <>
-          <h1 className="font-display text-[3rem] font-semibold leading-[1.05] text-accent">Stock aa gaya!</h1>
-          {view.product && (
-            <div className="mt-6 rounded-lg border border-line bg-white/50 p-5">
-              <p className="text-[19px] font-medium">{view.product.name}</p>
-              <p className="mt-1 text-[17px] text-muted">{formatINR(view.product.price)}</p>
-            </div>
-          )}
+          <Status tone="ok">
+            <h1 className="font-display text-[3rem] font-semibold leading-[1.05] text-accent">Stock aa gaya!</h1>
+            {view.product && (
+              <div className="mt-4 border-t border-line pt-4">
+                <p className="text-[19px] font-medium">{view.product.name}</p>
+                <p className="mt-1 text-[17px] text-muted">{formatINR(view.product.price)}</p>
+              </div>
+            )}
+          </Status>
           <button type="button" className={`${btnDark} mt-6 w-full`} disabled={busy} onClick={() => void act('reserve')}>
             {busy ? 'Ruko…' : 'Reserve karein'}
           </button>
           {message && (
-            <p className="mt-4 text-[16px]" role="status">
+            <p className="mt-4 rounded-lg border border-warn/50 bg-warn/10 px-4 py-3 text-[16px] leading-snug" role="status">
               {message}
             </p>
           )}
@@ -159,25 +181,33 @@ export default function StatusView({ id, t }: { id: string; t: string }) {
     } else if (view.status === 'reserved') {
       body = (
         <>
-          <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">Aapke liye rakha hai.</h1>
-          <p className="mt-3 text-[17px] text-muted">Dukaan par aake le jaayein.</p>
-          {view.product && (
-            <div className="mt-6 rounded-lg border border-line bg-white/50 p-5">
-              <p className="text-[19px] font-medium">{view.product.name}</p>
-              <p className="mt-1 text-[17px] text-muted">{formatINR(view.product.price)}</p>
-            </div>
-          )}
+          <Status tone="ok">
+            <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">Aapke liye rakha hai.</h1>
+            <p className="mt-3 text-[17px] text-muted">Dukaan par aake le jaayein.</p>
+            {view.product && (
+              <div className="mt-4 border-t border-line pt-4">
+                <p className="text-[19px] font-medium">{view.product.name}</p>
+                <p className="mt-1 text-[17px] text-muted">{formatINR(view.product.price)}</p>
+              </div>
+            )}
+          </Status>
           {cancelBlock('Ab nahi chahiye')}
         </>
       );
     } else if (view.status === 'picked_up') {
-      body = <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">Le gaye. Shukriya!</h1>;
+      body = (
+        <Status tone="ok">
+          <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">Le gaye. Shukriya!</h1>
+        </Status>
+      );
     } else {
       body = (
         <>
-          <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">
-            {view.close_reason ? CLOSE_TEXT[view.close_reason] : 'Ye request band ho gayi'}
-          </h1>
+          <Status tone="muted">
+            <h1 className="font-display text-[2.2rem] font-semibold leading-[1.1]">
+              {view.close_reason ? CLOSE_TEXT[view.close_reason] : 'Ye request band ho gayi'}
+            </h1>
+          </Status>
           {askedBlock}
         </>
       );
@@ -193,7 +223,7 @@ export default function StatusView({ id, t }: { id: string; t: string }) {
       <section className="mt-14" aria-live="polite">
         {body}
       </section>
-      <footer className="mt-auto pt-12 text-[13px] text-muted">Aapka number sirf is request ke liye hai.</footer>
+      <footer className="mt-auto pt-12 text-[14px] text-muted">Aapka number sirf is request ke liye hai.</footer>
     </main>
   );
 }

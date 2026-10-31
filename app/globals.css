@@ -6,9 +6,18 @@
   --muted: #6B665C;
   --line: #CFCABD;
   --accent: #FF0A6C;
-  --ok: #1F7A4D;
-  --warn: #B45309;
+  --ok: #1A6B43;
+  --warn: #9A4708;
   --danger: #B42318;
+  /* Merchant board (dark, projector) */
+  --board-bg: var(--ink);
+  --board-fg: var(--bg);
+  --board-error: #FF8A7A;
+  --board-ok: #4CC38A;
+  --counter-captured: #EEEAE0;
+  --counter-notified: #F5C26B;
+  --counter-reserved: #7CC4FA;
+  --counter-picked: #4CC38A;
 }
 
 @theme inline {
@@ -20,6 +29,14 @@
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
+  --color-board-bg: var(--board-bg);
+  --color-board-fg: var(--board-fg);
+  --color-board-error: var(--board-error);
+  --color-board-ok: var(--board-ok);
+  --color-counter-captured: var(--counter-captured);
+  --color-counter-notified: var(--counter-notified);
+  --color-counter-reserved: var(--counter-reserved);
+  --color-counter-picked: var(--counter-picked);
   --font-display: var(--font-bricolage), var(--font-mukta), system-ui, sans-serif;
   --font-sans: var(--font-hanken), var(--font-mukta), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), var(--font-mukta), ui-monospace, monospace;
@@ -45,6 +62,11 @@ body {
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
 }
 
 @media (prefers-reduced-motion: reduce) {

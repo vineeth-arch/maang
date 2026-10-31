@@ -379,6 +379,16 @@ async function main(): Promise<void> {
       assert(bd.metrics.captured === 6, `captured=${bd.metrics.captured}`);
       return 'unauthorised 401, restored seed';
     });
+
+    // 14. Speak guarded
+    await check('14 speak guarded', async () => {
+      const r1 = await http('POST', `/api/merchant/${SLUG}/speak`, { body: { kind: 'notified', count: 1 } });
+      assert(r1.status === 401 || r1.status === 404, `nokey status ${r1.status}`);
+      const r2 = await http('POST', mpath('speak'), { body: { kind: 'notified', count: 1 } });
+      const ok = r2.status === 503 || r2.status === 200 || (r2.status === 404 && r1.status === 404);
+      assert(ok, `keyed status ${r2.status}`);
+      return `nokey ${r1.status}, keyed ${r2.status}`;
+    });
   } catch (e) {
     if (e instanceof Abort) console.log(`ABORT remaining HTTP checks skipped (${e.message})`);
     else throw e;

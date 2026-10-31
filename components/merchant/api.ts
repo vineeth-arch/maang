@@ -40,4 +40,6 @@ export type Ctx = {
   // POSTs to /api/merchant/[shop]<suffix>; returns null on failure (error stored under key).
   run: <T>(key: string, suffix: string, body: unknown) => Promise<T | null>;
   toast: (msg: string) => void;
+  // Soundbox only: speaks after a successful notify. Absent when the flag is off.
+  announce?: (count: number) => void;
 };

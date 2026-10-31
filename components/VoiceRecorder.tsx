@@ -153,8 +153,8 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
   const secondsLeft = Math.max(0, Math.ceil((MAX_MS - elapsed) / 1000));
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative flex h-32 w-32 items-center justify-center">
+    <div className="flex flex-col items-center gap-3">
+      <div className="relative flex h-44 w-44 items-center justify-center">
         {recording && (
           <span
             aria-hidden
@@ -166,22 +166,22 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
           onClick={() => (recording ? finish(true) : void start())}
           disabled={disabled}
           aria-label={recording ? 'Recording rokein' : 'Bolna shuru karein'}
-          className={`relative flex h-28 w-28 items-center justify-center rounded-full text-white transition-transform active:scale-[0.97] disabled:opacity-50 ${
+          className={`relative flex h-36 w-36 items-center justify-center rounded-full text-white transition-transform active:scale-[0.97] disabled:opacity-50 ${
             recording ? 'bg-ink' : 'bg-accent'
           }`}
         >
           {recording ? (
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <rect x="5" y="5" width="14" height="14" rx="2" />
             </svg>
           ) : (
-            <svg width="38" height="38" viewBox="0 0 256 256" fill="currentColor" aria-hidden>
+            <svg width="52" height="52" viewBox="0 0 256 256" fill="currentColor" aria-hidden>
               <path d="M128 176a48.05 48.05 0 0 0 48-48V64a48 48 0 0 0-96 0v64a48.05 48.05 0 0 0 48 48Zm72-48a8 8 0 0 0-16 0 56 56 0 0 1-112 0 8 8 0 0 0-16 0 72.11 72.11 0 0 0 64 71.55V232a8 8 0 0 0 16 0v-32.45A72.11 72.11 0 0 0 200 128Z" />
             </svg>
           )}
         </button>
       </div>
-      <p className="label-mono min-h-5 text-muted" aria-live="polite">
+      <p className="min-h-6 text-center text-[16px] text-muted" aria-live="polite">
         {recording ? `Sun raha hoon  ·  ${secondsLeft}s baaki  ·  rokne ke liye tap` : 'Tap karke bolein'}
       </p>
       <style>{`
