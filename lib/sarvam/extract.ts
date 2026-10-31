@@ -78,19 +78,18 @@ export const extract: VoiceLane['extract'] = async (text, todayISO, hints) => {
 };
 
 // AI must never erase what the instant rules pass found (eval case 11 lost "eggless cake").
-// If AI has no item_key or fewer hard constraints than rules: keep the rules item, union the constraints.
+// Constraints are unioned by membership; the rules item is used only when the AI found no item.
 export function keepRulesFindings(ai: ExtractedRequest, rules: ExtractedRequest): ExtractedRequest {
   const lostItem = ai.item_key === null && rules.item_key !== null;
-  const lostConstraints = ai.hard_constraints.length < rules.hard_constraints.length;
-  if (!lostItem && !lostConstraints) return ai;
-  const useRulesItem = rules.item_key !== null;
+  const missingFromAi = rules.hard_constraints.some((c) => !ai.hard_constraints.includes(c));
   const hard = [...new Set([...ai.hard_constraints, ...rules.hard_constraints])];
-  const item = useRulesItem ? rules.item : ai.item;
+  if (!lostItem && !missingFromAi && hard.length === ai.hard_constraints.length) return ai;
+  const item = lostItem ? rules.item : ai.item;
   const missing = item === null ? ai.missing : ai.missing.filter((m) => m !== 'item');
   return {
     ...ai,
     item,
-    item_key: useRulesItem ? rules.item_key : ai.item_key,
+    item_key: lostItem ? rules.item_key : ai.item_key,
     hard_constraints: hard,
     soft_preferences: ai.soft_preferences.filter((s) => !hard.includes(s)),
     missing,
