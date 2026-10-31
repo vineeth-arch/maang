@@ -1,7 +1,10 @@
 'use client';
 
+import { merchantHref, merchantRead } from '@/lib/demo';
+import { KeyError } from './KeyError';
+
 import { useEffect, useState } from 'react';
-import { api } from './api';
+import { api, ApiFail } from './api';
 import { TIER_INFO, tierFor, type Tier } from '@/lib/insights-entry';
 import { BANDS, type BandId } from '@/lib/tier-bands';
 import type { InsightsResponse, Profile } from '@/lib/server/insights';
@@ -18,28 +21,30 @@ const MODULE_LABEL: Record<string, string> = {
   hourly: 'Requests by hour', csv: 'CSV export', by_location: 'By location', location_filter: 'Location filter', matrix: 'Item by location', top_branch: 'Top branch per item',
 };
 
-export function WhoAreYou({ shop, k }: { shop: string; k: string }) {
+export function WhoAreYou({ shop, k, demo = false }: { shop: string; k: string; demo?: boolean }) {
   const [band, setBand] = useState<BandId>('under_40l');
   const [locations, setLocations] = useState(1);
   const [msg, setMsg] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const base = `/api/merchant/${encodeURIComponent(shop)}`;
 
   useEffect(() => {
-    api<InsightsResponse>(`${base}/insights`, k)
+    api<InsightsResponse>(merchantRead(shop, 'insights', demo), k)
       .then((d) => {
         setBand(d.profile.annual_revenue_band);
         setLocations(d.profile.locations);
         setLoaded(true);
       })
-      .catch(() => setMsg('Could not load your current size.'));
-  }, [base, k]);
+      .catch((e) => { setUnauthorized(e instanceof ApiFail && e.status === 401); setMsg('Could not load your current size.'); });
+  }, [shop, k, demo]);
 
   const tier = tierFor(BANDS.find((b) => b.id === band)?.value ?? 0, locations);
   const info = TIER_INFO[tier];
   const w = WHO[tier];
 
   async function save() {
+    if (demo) return;
     try {
       await api<Profile>(`${base}/profile`, k, { annual_revenue_band: band, locations });
       setMsg('Saved. Insights now show this view.');
@@ -48,6 +53,7 @@ export function WhoAreYou({ shop, k }: { shop: string; k: string }) {
     }
   }
 
+  if (!demo && (!k.trim() || unauthorized)) return <KeyError missing={!k.trim()} />;
   return (
     <main className="min-h-screen bg-board-bg px-4 py-6 text-board-fg sm:px-8">
       <p className="label-mono text-board-fg/70">SETTINGS</p>
@@ -80,8 +86,8 @@ export function WhoAreYou({ shop, k }: { shop: string; k: string }) {
       </section>
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <button type="button" disabled={!loaded} onClick={() => void save()} className="label-mono min-h-12 rounded-md bg-board-fg px-4 text-board-bg disabled:opacity-60">Save</button>
-        <a href={`/m/${encodeURIComponent(shop)}/insights?k=${encodeURIComponent(k)}`} className="label-mono flex min-h-12 items-center rounded-md border border-board-fg/40 px-4">Back to insights</a>
+        <button type="button" disabled={demo || !loaded} onClick={() => void save()} className="label-mono min-h-12 rounded-md bg-board-fg px-4 text-board-bg disabled:opacity-60">Save</button>
+        <a href={merchantHref(shop, k, 'insights', demo)} className="label-mono flex min-h-12 items-center rounded-md border border-board-fg/40 px-4">Back to insights</a>
       </div>
       {msg && <p role="status" className="mt-3">{msg}</p>}
     </main>

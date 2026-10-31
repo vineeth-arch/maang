@@ -57,7 +57,7 @@ export function CloseMenu({ id, ctx, label = 'Close' }: { id: string; ctx: Ctx; 
           <button
             key={r.reason}
             type="button"
-            disabled={busy}
+            disabled={ctx.demo || busy}
             onClick={(e) => {
               const d = e.currentTarget.closest('details');
               if (d) d.open = false;
@@ -98,7 +98,7 @@ export function RequestRow({ r, ctx, highlight }: { r: BoardRequest; ctx: Ctx; h
         {r.status === 'reserved' && (
           <button
             type="button"
-            disabled={ctx.busy.has(pickKey)}
+            disabled={ctx.demo || ctx.busy.has(pickKey)}
             onClick={() => void ctx.run<PickupResponse>(pickKey, `/requests/${r.id}/pickup`, {})}
             className="min-h-12 rounded-md bg-board-fg px-5 text-base font-semibold text-board-bg disabled:opacity-50"
           >

@@ -12,7 +12,8 @@ export class ApiFail extends Error {
 
 // The merchant key is only ever passed through as ?k= and never stored or logged.
 export async function api<T>(path: string, k: string, body?: unknown): Promise<T> {
-  const url = `${path}?k=${encodeURIComponent(k)}`;
+  if (path.startsWith('/api/demo/') && body !== undefined) throw new ApiFail(403, 'demo_read_only');
+  const url = path.startsWith('/api/demo/') ? path : `${path}?k=${encodeURIComponent(k)}`;
   const res = await fetch(url, {
     method: body === undefined ? 'GET' : 'POST',
     headers: body === undefined ? undefined : { 'content-type': 'application/json' },
@@ -33,6 +34,7 @@ export async function api<T>(path: string, k: string, body?: unknown): Promise<T
 }
 
 export type Ctx = {
+  demo?: boolean;
   shop: string;
   today: string;
   busy: ReadonlySet<string>;

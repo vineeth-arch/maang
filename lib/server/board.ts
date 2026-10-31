@@ -85,13 +85,16 @@ async function loadMetrics(shopId: string): Promise<Metrics> {
 
 const ACTIVE = new Set(['open', 'notified', 'reserved']);
 
-export async function buildBoard(shop: Shop): Promise<BoardResponse> {
+export async function buildBoard(shop: Shop, syntheticOnly = false): Promise<BoardResponse> {
   const today = todayIST();
-  const [products, requests, metrics] = await Promise.all([
+  const [allProducts, allRequests, metrics] = await Promise.all([
     getProducts(shop.id),
     getShopRequests(shop.id),
     loadMetrics(shop.id),
   ]);
+
+  const products = syntheticOnly ? allProducts.filter(p => p.synthetic) : allProducts;
+  const requests = syntheticOnly ? allRequests.filter(r => r.synthetic) : allRequests;
 
   const expiredList: BoardRequest[] = [];
   const urgent: UrgentItem[] = [];

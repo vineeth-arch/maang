@@ -111,7 +111,7 @@ export function StockSheet({ cluster, ctx, onClose }: { cluster: Cluster; ctx: C
           <button
             type="button"
             onClick={() => void save()}
-            disabled={!chosen || ctx.busy.has(stockKey)}
+            disabled={ctx.demo || !chosen || ctx.busy.has(stockKey)}
             className="ml-auto min-h-12 rounded-md border border-board-fg px-6 text-lg font-semibold text-board-fg disabled:opacity-50"
           >
             {ctx.busy.has(stockKey) ? 'Saving…' : 'Save'}
@@ -122,7 +122,7 @@ export function StockSheet({ cluster, ctx, onClose }: { cluster: Cluster; ctx: C
         <button
           type="button"
           onClick={() => void notify()}
-          disabled={!canNotify}
+          disabled={ctx.demo || !canNotify}
           className="mt-8 min-h-14 w-full rounded-md bg-board-fg px-6 text-xl font-semibold text-board-bg disabled:opacity-40"
         >
           Customers ko batao ({n})

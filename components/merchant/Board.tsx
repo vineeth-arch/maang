@@ -1,5 +1,8 @@
 'use client';
 
+import { merchantHref, merchantRead } from '@/lib/demo';
+import { KeyError } from './KeyError';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BoardRequest, BoardResponse, CloseResponse, SpeakBody } from '@/lib/api-types';
 import { formatDeadline, formatINR } from '@/lib/domain';
@@ -53,9 +56,9 @@ function Counter({ label, value, tone }: { label: string; value: number; tone: k
   );
 }
 
-export function Board({ shop, k }: { shop: string; k: string }) {
+export function Board({ shop, k, demo = false }: { shop: string; k: string; demo?: boolean }) {
   const [data, setData] = useState<BoardResponse | null>(null);
-  const [conn, setConn] = useState<Conn>(k ? 'loading' : 'unauthorized');
+  const [conn, setConn] = useState<Conn>((demo || k) ? 'loading' : 'unauthorized');
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newIds, setNewIds] = useState<ReadonlySet<string>>(new Set());
@@ -64,15 +67,15 @@ export function Board({ shop, k }: { shop: string; k: string }) {
   const [restock, setRestock] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!k) return;
-    api<InsightsResponse>(`/api/merchant/${encodeURIComponent(shop)}/insights`, k)
+    if (!demo && !k) return;
+    api<InsightsResponse>(merchantRead(shop, 'insights', demo), k)
       .then((r) => {
         const top = r.insights.items.find((i) => i.recommendation === 'restock_now');
         const ev = top?.events[0];
         setRestock(top ? `Restock now: ${top.item_label}.${ev ? ` ${ev.name} in ${ev.days_away} days.` : ''}` : null);
       })
       .catch(() => setRestock(null)); // ponytail: line is optional, board works without it
-  }, [shop, k]);
+  }, [shop, k, demo]);
   const [showQr, setShowQr] = useState(false);
   const [origin, setOrigin] = useState('');
 
@@ -109,6 +112,7 @@ export function Board({ shop, k }: { shop: string; k: string }) {
 
   const announce = useCallback(
     async (text: string, body: SpeakBody) => {
+      if (demo) return;
       setSoundLine(text);
       if (!unlockedRef.current) return;
       try {
@@ -135,13 +139,13 @@ export function Board({ shop, k }: { shop: string; k: string }) {
         // stay silent
       }
     },
-    [k, shop],
+    [k, shop, demo],
   );
 
   const refresh = useCallback(async () => {
-    if (!k) return;
+    if (!demo && !k) return;
     try {
-      const d = await api<BoardResponse>(`/api/merchant/${encodeURIComponent(shop)}/board`, k);
+      const d = await api<BoardResponse>(merchantRead(shop, 'board', demo), k);
       setData(d);
       setConn('ok');
       const ids = allIds(d);
@@ -177,10 +181,10 @@ export function Board({ shop, k }: { shop: string; k: string }) {
       if (e instanceof ApiFail && e.status === 401) setConn('unauthorized');
       else setConn((c) => (c === 'unauthorized' ? c : 'offline'));
     }
-  }, [k, shop, announce]);
+  }, [k, shop, announce, demo]);
 
   useEffect(() => {
-    if (!k) return;
+    if (!demo && !k) return;
     let stopped = false;
     let timer: number | undefined;
     const loop = async () => {
@@ -200,7 +204,7 @@ export function Board({ shop, k }: { shop: string; k: string }) {
       document.removeEventListener('visibilitychange', onVis);
       pending.forEach((t) => window.clearTimeout(t));
     };
-  }, [k, refresh]);
+  }, [k, refresh, demo]);
 
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -210,6 +214,7 @@ export function Board({ shop, k }: { shop: string; k: string }) {
 
   const run = useCallback(
     async <T,>(key: string, suffix: string, body: unknown): Promise<T | null> => {
+      if (demo) return null;
       setBusy((b) => new Set(b).add(key));
       setErrors((e) => {
         const { [key]: _drop, ...rest } = e;
@@ -232,22 +237,14 @@ export function Board({ shop, k }: { shop: string; k: string }) {
         });
       }
     },
-    [k, shop, refresh],
+    [k, shop, refresh, demo],
   );
 
-  if (conn === 'unauthorized') {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-board-bg p-8">
-        <p className="font-display text-center text-5xl font-semibold text-board-fg">
-          Merchant key missing or wrong.
-        </p>
-      </main>
-    );
-  }
+  if (conn === 'unauthorized') return <KeyError missing={!k.trim()} />;
 
   const today = data?.today ?? '';
-  const ctx: Ctx = { shop, today, busy, errors, run, toast };
-  if (soundboxOn) ctx.announce = (count) => void announce(notifiedText(count), { kind: 'notified', count });
+  const ctx: Ctx = { shop, today, busy, errors, run, toast, demo };
+  if (soundboxOn && !demo) ctx.announce = (count) => void announce(notifiedText(count), { kind: 'notified', count });
 
   const matched = data ? data.clusters.filter((c) => c.eligible.length > 0) : [];
   const unmatched = data ? data.clusters.filter((c) => c.eligible.length === 0) : [];
@@ -264,7 +261,7 @@ export function Board({ shop, k }: { shop: string; k: string }) {
           </h1>
           {restock && (
             <a
-              href={`/m/${encodeURIComponent(shop)}/insights?k=${encodeURIComponent(k)}`}
+              href={merchantHref(shop, k, 'insights', demo)}
               className="mt-3 inline-block text-lg font-semibold text-rising-text underline underline-offset-4"
             >
               {restock}
@@ -281,13 +278,14 @@ export function Board({ shop, k }: { shop: string; k: string }) {
             Demo data: synthetic
           </span>
           <a
-            href={`/m/${encodeURIComponent(shop)}/insights?k=${encodeURIComponent(k)}`}
+            href={merchantHref(shop, k, 'insights', demo)}
             className="label-mono flex min-h-12 items-center rounded-md bg-board-fg px-5 font-bold text-board-bg"
           >
             Insights →
           </a>
           <button
             type="button"
+            disabled={demo}
             aria-expanded={showQr}
             onClick={() => setShowQr((s) => !s)}
             className="label-mono min-h-12 rounded-md border border-board-fg/40 px-4 text-board-fg"
@@ -297,6 +295,7 @@ export function Board({ shop, k }: { shop: string; k: string }) {
           {soundboxOn && !unlocked && (
             <button
               type="button"
+              disabled={demo}
               onClick={() => void unlockSound()}
               className="label-mono min-h-12 rounded-md border border-board-fg/40 px-4 text-board-fg"
             >
@@ -355,7 +354,7 @@ export function Board({ shop, k }: { shop: string; k: string }) {
                       <div className="mt-4 flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          disabled={busy.has(key)}
+                          disabled={demo || busy.has(key)}
                           onClick={() =>
                             void run<CloseResponse>(key, `/requests/${u.id}/close`, {
                               reason: 'cannot_meet_deadline',

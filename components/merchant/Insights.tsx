@@ -1,5 +1,8 @@
 'use client';
 
+import { merchantHref, merchantRead } from '@/lib/demo';
+import { KeyError } from './KeyError';
+
 import { useEffect, useMemo, useState } from 'react';
 import { api } from './api';
 import { formatINR } from '@/lib/domain/format';
@@ -67,17 +70,17 @@ function csv(items: ItemInsight[]): string {
   return [head.join(','), ...rows].join('\n');
 }
 
-export function Insights({ shop, k }: { shop: string; k: string }) {
+export function Insights({ shop, k, demo = false }: { shop: string; k: string; demo?: boolean }) {
   const [data, setData] = useState<InsightsResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [store, setStore] = useState('all');
   const [say, setSay] = useState<string | null>(null);
 
   useEffect(() => {
-    api<InsightsResponse>(`/api/merchant/${encodeURIComponent(shop)}/insights`, k)
+    api<InsightsResponse>(merchantRead(shop, 'insights', demo), k)
       .then(setData)
       .catch((e: unknown) => setErr(e instanceof Error ? e.message : 'error'));
-  }, [shop, k]);
+  }, [shop, k, demo]);
 
   const ins = data?.insights;
   const items = useMemo(() => {
@@ -86,6 +89,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
     return ins.items.filter((i) => i.by_store?.some((s) => s.store_id === store));
   }, [ins, store]);
 
+  if (!demo && (!k.trim() || err === 'unauthorized')) return <KeyError missing={!k.trim()} />;
   if (err) return <main className="min-h-screen bg-insights-canvas p-6 text-insights-ink"><p className="text-xl">Could not load insights ({err}).</p></main>;
   if (!data || !ins) return <main className="min-h-screen bg-insights-canvas p-6 text-insights-ink"><p className="label-mono text-insights-muted">Loading…</p></main>;
 
@@ -98,11 +102,11 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
   };
   const has = (m: string) => data.modules.includes(m) || (moduleAliases[m] ?? []).some((alias) => data.modules.includes(alias));
   const q = `?k=${encodeURIComponent(k)}`;
-  const base = `/m/${encodeURIComponent(shop)}`;
   const stores = ins.byStore ?? [];
   const atStore = (i: ItemInsight) => (store === 'all' ? i.requests_30d : i.by_store?.find((s) => s.store_id === store)?.requests_30d ?? 0);
 
   async function speak() {
+    if (demo) return;
     setSay('Playing…');
     // Create the audio element during the click so Safari/iOS keep user-gesture permission.
     const a = new Audio();
@@ -149,14 +153,14 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
           <h1 className="font-display mt-1 break-words text-3xl font-bold leading-none tracking-tight sm:text-5xl">{data.shop.name}</h1>
         </div>
         <nav className="flex flex-wrap gap-3">
-          <a href={`${base}${q}`} className="label-mono flex min-h-12 items-center rounded-lg border border-insights-border bg-insights-surface px-4 text-insights-ink shadow-insights-card transition-colors hover:border-insights-teal hover:text-insights-teal">Board</a>
-          <a href={`${base}/settings${q}`} className="label-mono flex min-h-12 items-center rounded-lg border border-insights-border bg-insights-surface px-4 text-insights-ink shadow-insights-card transition-colors hover:border-insights-teal hover:text-insights-teal">Who are you?</a>
+          <a href={merchantHref(shop, k, 'board', demo)} className="label-mono flex min-h-12 items-center rounded-lg border border-insights-border bg-insights-surface px-4 text-insights-ink shadow-insights-card transition-colors hover:border-insights-teal hover:text-insights-teal">Board</a>
+          <a href={merchantHref(shop, k, 'settings', demo)} className="label-mono flex min-h-12 items-center rounded-lg border border-insights-border bg-insights-surface px-4 text-insights-ink shadow-insights-card transition-colors hover:border-insights-teal hover:text-insights-teal">Who are you?</a>
         </nav>
       </header>
 
       <section aria-label="Headline" className="mt-7 rounded-insights-card border border-insights-teal/15 border-l-4 border-l-insights-teal bg-insights-teal-soft p-4 sm:p-6">
         <p className="font-display text-xl font-semibold leading-snug text-insights-ink sm:text-3xl" data-testid="headline">{ins.headline}</p>
-        <button type="button" onClick={() => void speak()} className="label-mono mt-4 min-h-12 rounded-lg bg-insights-teal px-5 text-white shadow-insights-card transition-colors hover:bg-insights-ink focus-visible:outline-insights-teal">
+        <button type="button" disabled={demo} onClick={() => void speak()} className="label-mono mt-4 min-h-12 rounded-lg bg-insights-teal px-5 text-white shadow-insights-card transition-colors hover:bg-insights-ink focus-visible:outline-insights-teal">
           Soundbox par suno
         </button>
         {say && <p role="status" className="label-mono mt-2 text-insights-muted">{say}</p>}

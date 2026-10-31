@@ -40,7 +40,7 @@ export async function saveProfile(shop: Shop, p: Profile): Promise<void> {
 
 type HistoryPayload = Omit<DemandEvent, 'created_at'> & { synthetic: true };
 
-async function loadEvents(shop: Shop): Promise<DemandEvent[]> {
+async function loadEvents(shop: Shop, syntheticOnly = false): Promise<DemandEvent[]> {
   const since = new Date(Date.now() - 31 * 86_400_000).toISOString();
   const { data, error } = await db()
     .from('events')
@@ -50,10 +50,10 @@ async function loadEvents(shop: Shop): Promise<DemandEvent[]> {
     .gte('created_at', since)
     .limit(5000);
   if (error) throw new Error(`demand: ${error.message}`);
-  const history = (data ?? []).map((r) => ({ ...(r.payload as HistoryPayload), created_at: r.created_at as string }));
+  const history = (data ?? []).filter(r => !syntheticOnly || (r.payload as HistoryPayload).synthetic).map((r) => ({ ...(r.payload as HistoryPayload), created_at: r.created_at as string }));
   const cat = new Map(history.map((h) => [h.item_key, h.category]));
   const live: DemandEvent[] = (await getShopRequests(shop.id))
-    .filter((r) => r.item_key)
+    .filter((r) => r.item_key && (!syntheticOnly || r.synthetic))
     .map((r) => ({
       item_key: r.item_key as string,
       item_label: r.item_label ?? (r.item_key as string),
@@ -66,8 +66,8 @@ async function loadEvents(shop: Shop): Promise<DemandEvent[]> {
   return [...history, ...live];
 }
 
-export async function insightsFor(shop: Shop): Promise<InsightsResponse> {
-  const [profile, events] = await Promise.all([getProfile(shop), loadEvents(shop)]);
+export async function insightsFor(shop: Shop, syntheticOnly = false): Promise<InsightsResponse> {
+  const [profile, events] = await Promise.all([getProfile(shop), loadEvents(shop, syntheticOnly)]);
   return {
     shop: { slug: shop.slug, name: shop.name },
     profile,
