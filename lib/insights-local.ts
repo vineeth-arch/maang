@@ -71,9 +71,11 @@ export function buildInsights(events: DemandEvent[], opts: { today: Date; tier: 
   const upcoming = upcomingEvents(opts.today);
   const multi = opts.tier === 'large' || opts.tier === 'very_large';
 
+  // 30-day window = the same 30 IST calendar dates the daily chart shows, so totals and chart agree.
+  const firstDay = istDate(new Date(Date.parse(todayISO + 'T06:30:00Z') - 29 * DAY));
   const recent = events.filter((e) => {
     const age = now - Date.parse(e.created_at);
-    return age >= 0 && age < 30 * DAY;
+    return age >= 0 && istDate(new Date(e.created_at)) >= firstDay;
   });
 
   const groups = new Map<string, DemandEvent[]>();
