@@ -1,3 +1,69 @@
+# Public deck links (DEMO-MODE)
+
+Use these key-free URLs in the deck:
+
+- https://maang-alpha.vercel.app/demo
+- https://maang-alpha.vercel.app/demo/toys/board
+- https://maang-alpha.vercel.app/demo/toys/insights
+- https://maang-alpha.vercel.app/demo/toys/settings
+- https://maang-alpha.vercel.app/demo/electronics/board
+- https://maang-alpha.vercel.app/demo/electronics/insights
+- https://maang-alpha.vercel.app/demo/electronics/settings
+
+The seven landing cards cover the six store views plus the demo overview. All demo views show
+"Demo view, synthetic data" and "Demo view is read-only. The presenter runs the live flow."
+The only navigation outside `/demo` is the explicitly labelled, existing public customer page.
+That customer flow remains live; do not submit it during read-only verification.
+
+## Boundaries
+
+`lib/demo.ts` is the single public allowlist: toys = `neighbourhood-toys`, electronics =
+`electronics-andheri`. Shared merchant components receive `demo`; no merchant key is read,
+embedded, stored or sent by demo pages. GET `/api/demo/board/[slug]` and
+`/api/demo/insights/[slug]` reuse the real builders, selecting synthetic requests/products/history.
+Recursive redaction removes phone fields (including masked phones), tokens, credentials,
+embedded environment strings and phone-like text. Errors return fixed messages without logging data.
+Real auth and its constant-time comparison are unchanged.
+
+Notify, stock save, reserve, pickup, cancel, close, reset, Soundbox speak and settings save
+cannot run through demo views. Existing customer reserve/cancel and admin reset are not exposed.
+Settings turnover/location controls are local previews only. Stock sheets and request lists
+can be opened for inspection; their write controls are disabled. Counter QR is disabled;
+use the labelled customer link instead.
+
+**DEMO_ACTIONS: optional feature not implemented; no action routes or env switch exist.**
+Actions are therefore always OFF, including if someone sets `DEMO_ACTIONS=1`.
+Nothing was enabled in Vercel. A future opt-in implementation must restrict actions to
+notify/reserve/pickup/close for these two stores, enforce 20/min/IP, and never enable
+reset, settings save or speak.
+
+Read APIs enforce 120 requests/minute/IP across board and Insights with 429 + Retry-After.
+This reuses the existing in-memory limiter: limits are per server instance, not distributed.
+Demo pages send `noindex, nofollow` metadata. API responses are `no-store`.
+
+## Safe verification (shared production database)
+
+Never run smoke, QA, eval or reset for this change. Run:
+
+```sh
+npm run test:unit
+npx tsc --noEmit
+npx eslint app/ components/ lib/
+npm run build
+npm run start -- --port 3100
+# Separate terminal, with Playwright available (or PLAYWRIGHT_MODULE set to its installed path):
+node --env-file=.env.local scripts/verify-demo.cjs
+```
+
+`PLAYWRIGHT_EXECUTABLE` optionally selects an already installed Chromium binary.
+The browser verifier uses only GET requests, fresh contexts for all seven URLs at 1440×900,
+390×844 and 360×844, checks banner/noindex/navigation/key-free requests/disabled writes,
+and exercises local settings previews. Screenshots and verification.json go to
+`~/Desktop/maang-deck-shots/demo/`. Unit tests use inert credentials and never access the DB.
+Keep `demo-v6` at `f9cf027` as fallback. Deploy/tag `demo-v6b` only after all checks pass.
+
+---
+
 # MAANG demo sheet
 
 MAANG captures the sale that did not happen. The customer says what the shop did not have, the merchant sees demand clustered on a board, restocks with one tap, notifies everyone who opted in, and they reserve. Demo shop "Neighbourhood Toys (demo)" uses synthetic data only.
