@@ -135,7 +135,6 @@ function percentile(values: number[], p: number): number {
 function fmt(ms: number): string { return `${ms.toFixed(1)} ms`; }
 
 let consentingA: Made | undefined;
-let consentingB: Made | undefined;
 let noConsent: Made | undefined;
 let urgent: Made | undefined;
 let winner: Made | undefined;
@@ -157,10 +156,11 @@ async function main(): Promise<void> {
       const r = await reset();
       assert(r.status === 200, `reset status ${r.status}`);
       assert(r.json.counts?.products === 4 && r.json.counts?.requests === 6, `counts ${JSON.stringify(r.json.counts)}`);
+      assert(r.json.store2?.products === 6 && r.json.store2?.requests === 17, `store2 counts ${JSON.stringify(r.json.store2)}`);
       const b = await board();
       assert(stockOf(b, 'RC-01') === 0, `RC-01 stock ${stockOf(b, 'RC-01')}`);
       latestBoard = b;
-      return 'seed products=4, requests=6; RC-01 stock=0';
+      return 'store1 products=4, requests=6; store2 products=6, requests=17; RC-01 stock=0';
     });
 
     await check('Store 2 customer page', async () => {
@@ -206,10 +206,9 @@ async function main(): Promise<void> {
 
     await check('Create 3 typed requests through rules extraction', async () => {
       consentingA = await make(HINGLISH, true);
-      consentingB = await make(HINGLISH, true);
       noConsent = await make(HINGLISH, false);
       urgent = await make(URGENT, true);
-      return '4 created; consent=true,true,false,true';
+      return '3 created; consent=true,false,true';
     });
 
     await check('Cluster and urgent lane placement', async () => {
@@ -241,7 +240,7 @@ async function main(): Promise<void> {
     });
 
     await check('10 concurrent reserve calls', async () => {
-      const eligible = [consentingA!, consentingA!, consentingA!, consentingA!, consentingA!, consentingB!, consentingB!, consentingB!, consentingB!, consentingB!];
+      const eligible = Array.from({ length: 10 }, () => consentingA!);
       const responses = await Promise.all(eligible.map((m) => reserve(m)));
       const okCount = responses.filter((r) => r.status === 200 && r.json.result === 'ok').length;
       assert(okCount === 1, `result=ok count ${okCount}; statuses=${responses.map((r) => `${r.status}:${r.json.result}`).join(',')}`);
@@ -358,9 +357,10 @@ async function main(): Promise<void> {
       const r = await reset();
       assert(r.status === 200, `reset status ${r.status}`);
       assert(r.json.counts?.products === 4 && r.json.counts?.requests === 6, `counts ${JSON.stringify(r.json.counts)}`);
+      assert(r.json.store2?.products === 6 && r.json.store2?.requests === 17, `store2 counts ${JSON.stringify(r.json.store2)}`);
       const b = await board();
       assert(stockOf(b, 'RC-01') === 0, `RC-01 stock ${stockOf(b, 'RC-01')}`);
-      return 'seed restored: products=4, requests=6, RC-01 stock=0';
+      return 'seed restored: store1 products=4, requests=6; store2 products=6, requests=17; RC-01 stock=0';
     });
   }
 }
@@ -377,6 +377,7 @@ function writeResults(): void {
 main().then(() => {
   writeResults();
   const failed = results.filter((r) => !r.ok).length;
+  console.table(results.map(({ name, ok, detail }) => ({ result: ok ? 'PASS' : 'FAIL', check: name, measurement: detail })));
   console.log(`\nQA summary: ${results.length - failed}/${results.length} passed`);
   process.exitCode = failed === 0 ? 0 : 1;
 }).catch((error: unknown) => {

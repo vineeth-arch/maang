@@ -115,11 +115,11 @@ QA owns these values. No load or latency claim is inferred from code inspection.
 | Check | Value |
 |---|---|
 | Concurrent reserve test: one ok out of N contenders for one remaining unit | 1/10 ok; stock 0; negative stock 0 |
-| Extract latency p50, AI | 1,560.0 ms (5 runs; max 1,787.8 ms) |
-| Extract latency p50, rules | 489.5 ms (5 runs; max 523.8 ms) |
+| Extract latency p50, AI | 1,335.0 ms (5 mode=ai requests; max 1,846.2 ms) |
+| Extract latency p50, rules | 494.4 ms (5 mode=rules requests; max 667.3 ms) |
 | Rate limit observations | 7/15 returned 429; remaining 8 returned 201; per-instance Vercel observation |
-| Board read p50 at 30 concurrent | 762.4 ms; 0/30 errors |
-| Board read p95 at 30 concurrent | 1,034.7 ms; 0/30 errors |
+| Board read p50 at 30 concurrent | 1,384.7 ms; 0/30 errors |
+| Board read p95 at 30 concurrent | 1,740.1 ms; 0/30 errors |
 
 ## Open questions
 
