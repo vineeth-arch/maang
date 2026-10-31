@@ -53,7 +53,11 @@ function Bars({ data, label, marks }: { data: { x: string; n: number }[]; label:
 
 function csv(items: ItemInsight[]): string {
   const head = ['item', 'category', 'requests_7d', 'requests_prev_7d', 'requests_30d', 'trend', 'median_budget_inr', 'demand_value_inr', 'event', 'recommendation', 'reason'];
-  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // Leading = + - @ would run as a formula in Excel.
+  const esc = (v: unknown) => {
+    const t = String(v ?? '');
+    return `"${(/^[=+\-@]/.test(t) ? `'${t}` : t).replace(/"/g, '""')}"`;
+  };
   const rows = items.map((i) => [i.item_label, i.category, i.requests_7d, i.requests_prev_7d, i.requests_30d, i.trend, i.budget_median_inr, i.demand_value_inr, i.events[0]?.name, i.recommendation, i.reason].map(esc).join(','));
   return [head.join(','), ...rows].join('\n');
 }
@@ -88,6 +92,8 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
 
   async function speak() {
     setSay('Playing…');
+    // Created inside the click so Safari/iOS keep the user-gesture permission to play.
+    const a = new Audio();
     try {
       const r = await fetch(`/api/merchant/${encodeURIComponent(shop)}/speak${q}`, {
         method: 'POST',
@@ -96,7 +102,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
       });
       if (!r.ok) throw new Error(String(r.status));
       const url = URL.createObjectURL(await r.blob());
-      const a = new Audio(url);
+      a.src = url;
       a.onended = () => URL.revokeObjectURL(url);
       await a.play();
       setSay(null);
@@ -112,11 +118,17 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
     a.href = url;
     a.download = `${shop}-insights.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  const dayIdx = new Map(ins.daily.map((d, i) => [d.date, i]));
-  const marks = ins.upcoming.flatMap((u) => (dayIdx.has(u.date) ? [{ at: dayIdx.get(u.date)!, name: u.name }] : []));
+  // Daily chart runs past today up to the next festival within 10 days, marked with a dashed line.
+  const nextEv = ins.upcoming.find((u) => u.days_away > 0 && u.days_away <= 10);
+  const ahead = Array.from({ length: nextEv?.days_away ?? 0 }, (_, i) => {
+    const d = new Date(Date.parse(ins.daily[ins.daily.length - 1].date) + (i + 1) * 86_400_000).toISOString().slice(0, 10);
+    return { x: d.slice(5), n: 0 };
+  });
+  const dailyBars = [...ins.daily.map((d) => ({ x: d.date.slice(5), n: d.count })), ...ahead];
+  const marks = nextEv ? [{ at: dailyBars.length - 1, name: nextEv.name }] : [];
 
   return (
     <main className="min-h-screen bg-board-bg px-4 py-6 text-board-fg sm:px-8 xl:px-12">
@@ -208,8 +220,8 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
       )}
 
       {has('daily') && (
-        <Section title="Requests per day" hint={`Last 30 days${marks.length ? '. Dashed line: festival' : ''}`}>
-          <Bars label="Requests per day, last 30 days" data={ins.daily.map((d) => ({ x: d.date.slice(5), n: d.count }))} marks={marks} />
+        <Section title="Requests per day" hint={`Last 30 days${nextEv ? `. Dashed line: ${nextEv.name}` : ''}`}>
+          <Bars label={`Requests per day, last 30 days${nextEv ? `, then days until ${nextEv.name}` : ''}`} data={dailyBars} marks={marks} />
         </Section>
       )}
 
