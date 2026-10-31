@@ -8,6 +8,7 @@ import { api, ApiFail, type Ctx } from './api';
 import { ClusterCard } from './ClusterCard';
 import { CloseMenu } from './RequestRow';
 import { StockSheet } from './StockSheet';
+import type { InsightsResponse } from '@/lib/server/insights';
 
 type Conn = 'loading' | 'ok' | 'offline' | 'unauthorized';
 
@@ -60,6 +61,18 @@ export function Board({ shop, k }: { shop: string; k: string }) {
   const [newIds, setNewIds] = useState<ReadonlySet<string>>(new Set());
   const [sheetKey, setSheetKey] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [restock, setRestock] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!k) return;
+    api<InsightsResponse>(`/api/merchant/${encodeURIComponent(shop)}/insights`, k)
+      .then((r) => {
+        const top = r.insights.items.find((i) => i.recommendation === 'restock_now');
+        const ev = top?.events[0];
+        setRestock(top ? `Restock now: ${top.item_label}.${ev ? ` ${ev.name} in ${ev.days_away} days.` : ''}` : null);
+      })
+      .catch(() => setRestock(null)); // ponytail: line is optional, board works without it
+  }, [shop, k]);
   const [showQr, setShowQr] = useState(false);
   const [origin, setOrigin] = useState('');
 
@@ -249,6 +262,14 @@ export function Board({ shop, k }: { shop: string; k: string }) {
           <h1 className="font-display mt-1 break-words text-4xl font-bold leading-none sm:text-6xl">
             {data?.shop.name ?? shop}
           </h1>
+          {restock && (
+            <a
+              href={`/m/${encodeURIComponent(shop)}/insights?k=${encodeURIComponent(k)}`}
+              className="mt-3 inline-block text-lg font-semibold underline underline-offset-4"
+            >
+              {restock}
+            </a>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {conn === 'offline' && (
@@ -261,9 +282,9 @@ export function Board({ shop, k }: { shop: string; k: string }) {
           </span>
           <a
             href={`/m/${encodeURIComponent(shop)}/insights?k=${encodeURIComponent(k)}`}
-            className="label-mono flex min-h-12 items-center rounded-md border border-board-fg/40 px-4 text-board-fg"
+            className="label-mono flex min-h-12 items-center rounded-md bg-board-fg px-5 font-bold text-board-bg"
           >
-            Insights
+            Insights →
           </a>
           <button
             type="button"

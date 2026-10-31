@@ -13,4 +13,4 @@ export type BandId = (typeof BANDS)[number]['id'];
 const BASE = ['headline', 'events', 'top_items'];
 const MED = [...BASE, 'table', 'daily', 'hourly', 'csv'];
 const LARGE = [...MED, 'by_location', 'location_filter'];
-export const MODULES: Record<Tier, string[]> = { small: BASE, medium: MED, large: LARGE, very_large: [...LARGE, 'matrix', 'top_branch'] };
+export const MODULES: Record<Tier, string[]> = { small: [...BASE, 'daily'], medium: MED, large: LARGE, very_large: [...LARGE, 'matrix', 'top_branch'] };

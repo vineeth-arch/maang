@@ -24,13 +24,13 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   );
 }
 
-function Bars({ data, label, marks }: { data: { x: string; n: number }[]; label: string; marks?: { at: number; name: string }[] }) {
+function Bars({ data, label, marks, compact }: { data: { x: string; n: number }[]; label: string; marks?: { at: number; name: string }[]; compact?: boolean }) {
   const max = Math.max(1, ...data.map((d) => d.n));
   const w = 10;
   const H = 100;
   return (
     <figure>
-      <svg role="img" aria-label={label} viewBox={`0 0 ${data.length * w} ${H + 14}`} className="h-40 w-full" preserveAspectRatio="none">
+      <svg role="img" aria-label={label} viewBox={`0 0 ${data.length * w} ${H + 14}`} className={`${compact ? 'h-24' : 'h-40'} w-full`} preserveAspectRatio="none">
         {data.map((d, i) => {
           const h = (d.n / max) * H;
           return (
@@ -221,7 +221,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
 
       {has('daily') && (
         <Section title="Requests per day" hint={`Last 30 days${nextEv ? `. Dashed line: ${nextEv.name}` : ''}`}>
-          <Bars label={`Requests per day, last 30 days${nextEv ? `, then days until ${nextEv.name}` : ''}`} data={dailyBars} marks={marks} />
+          <Bars label={`Requests per day, last 30 days${nextEv ? `, then days until ${nextEv.name}` : ''}`} data={dailyBars} marks={marks} compact={data.profile.tier === 'small'} />
         </Section>
       )}
 
