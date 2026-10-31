@@ -21,9 +21,15 @@ export function alignToCatalog<T extends { item_key: string | null; hard_constra
   if (!ex.item_key) return ex;
   const tags = [...new Set(products.filter((p) => p.item_key === ex.item_key).flatMap((p) => p.tags))];
   if (tags.length === 0) return ex;
-  const out = new Set(ex.hard_constraints.map((c) => tags.find((t) => same(value(t), value(c))) ?? c));
-  // Spoken but missed by extraction. Pure numbers (pieces:500) are skipped: a budget like "500" must not add them.
   const text = flat(ex.source_text);
+  const out = new Set<string>();
+  for (const c of ex.hard_constraints) {
+    const tag = tags.find((t) => same(value(t), value(c)));
+    // Neither a catalogue tag for this item nor in the words spoken: extractor guessed it (e.g. "rechargeable" earbuds).
+    if (tag) out.add(tag);
+    else if (text.includes(value(c))) out.add(c);
+  }
+  // Spoken but missed by extraction. Pure numbers (pieces:500) are skipped: a budget like "500" must not add them.
   for (const t of tags) if (/[a-z]/.test(value(t)) && text.includes(value(t))) out.add(t);
   return { ...ex, hard_constraints: [...out].sort() };
 }

@@ -152,6 +152,10 @@ test('alignToCatalog snaps spoken constraints to catalogue tags, same item only'
   assert.deepEqual(lap.hard_constraints, ['16_gb_ram']);
   const puz = alignToCatalog({ item_key: 'jigsaw_puzzle', hard_constraints: ['pieces:1000'], source_text: '1000 pieces, 500 rupaye' }, [{ item_key: 'jigsaw_puzzle', tags: ['pieces:500'] }]);
   assert.deepEqual(puz.hard_constraints, ['pieces:1000']);
+  const buds = alignToCatalog({ item_key: 'earbuds', hard_constraints: ['rechargeable', 'noise_cancelling'], source_text: 'noise cancelling earbuds 3000 ke andar' }, [{ item_key: 'earbuds', tags: ['noise_cancelling'] }]);
+  assert.deepEqual(buds.hard_constraints, ['noise_cancelling']);
+  const rc2 = alignToCatalog({ item_key: 'rc_car', hard_constraints: ['rechargeable'], source_text: 'remote wali gaadi, battery wala nahi' }, [{ item_key: 'rc_car', tags: ['rechargeable'] }]);
+  assert.deepEqual(rc2.hard_constraints, ['rechargeable']);
   const other = alignToCatalog({ item_key: 'jigsaw_puzzle', hard_constraints: ['pieces:1000'], source_text: 'wall mount' }, tvs);
   assert.deepEqual(other.hard_constraints, ['pieces:1000']);
   const rc = alignToCatalog({ item_key: 'rc_car', hard_constraints: ['rechargeable'], source_text: 'rechargeable car' },
