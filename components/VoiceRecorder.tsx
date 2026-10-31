@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { encodeWav } from '@/components/customer/wav';
+import type { TelemetryBody } from '@/lib/api-types';
 
 const MAX_MS = 15000;
 const MIN_MS = 500;
@@ -10,11 +11,24 @@ const SILENCE_PEAK = 1e-4;
 
 export type RecorderErrorKind = 'unsupported' | 'denied' | 'no_audio' | 'too_short' | 'failed';
 
+/** Diagnostics for telemetry: audio context state, buffers received and recording length. No audio. */
+export type RecorderInfo = Pick<TelemetryBody, 'ctx_state' | 'chunks' | 'duration_ms'>;
+
 type Props = {
-  onRecorded: (blob: Blob, durationMs: number) => void;
-  onError: (kind: RecorderErrorKind) => void;
+  onRecorded: (blob: Blob, durationMs: number, info?: RecorderInfo) => void;
+  onError: (kind: RecorderErrorKind, info?: RecorderInfo) => void;
   disabled?: boolean;
 };
+
+function ctxStateOf(ctx: AudioContext | null): RecorderInfo['ctx_state'] {
+  if (!ctx) return 'none';
+  if (ctx.state === 'running' || ctx.state === 'closed') return ctx.state;
+  return 'suspended'; // includes WebKit's 'interrupted'
+}
+
+function mkInfo(ctx_state: RecorderInfo['ctx_state'], chunks: number, ms: number): RecorderInfo {
+  return { ctx_state, chunks: Math.min(chunks, 10000), duration_ms: Math.max(0, Math.min(Math.round(ms), 20000)) };
+}
 
 type AC = typeof AudioContext;
 
@@ -60,23 +74,25 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
       if (!activeRef.current) return;
       activeRef.current = false;
       const rate = ctxRef.current?.sampleRate ?? 48000;
+      const state = ctxStateOf(ctxRef.current);
       const duration = Math.min(Date.now() - startedRef.current, MAX_MS);
       const chunks = chunksRef.current;
       const peak = peakRef.current;
       chunksRef.current = [];
+      const info = mkInfo(state, chunks.length, duration);
       teardown();
       setRecording(false);
       setElapsed(0);
       if (!deliver) return;
       // A quick double-tap lands here: nothing is uploaded and the mic is already torn down, so the next tap works.
       if (duration < MIN_MS) {
-        onError('too_short');
+        onError('too_short', info);
         return;
       }
       try {
         const total = chunks.reduce((n, c) => n + c.length, 0);
         if (total === 0 || peak < SILENCE_PEAK) {
-          onError('no_audio');
+          onError('no_audio', info);
           return;
         }
         const all = new Float32Array(total);
@@ -89,9 +105,9 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
         if (process.env.NODE_ENV !== 'production') {
           console.log('[VoiceRecorder] blob bytes', blob.size, 'duration ms', duration);
         }
-        onRecorded(blob, duration);
+        onRecorded(blob, duration, info);
       } catch {
-        onError('failed');
+        onError('failed', info);
       }
     },
     [onError, onRecorded, teardown],
@@ -100,13 +116,13 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
   const start = useCallback(async () => {
     if (startingRef.current || activeRef.current) return;
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      onError('unsupported');
+      onError('unsupported', mkInfo('none', 0, 0));
       return;
     }
     const Ctor: AC | undefined =
       window.AudioContext ?? (window as unknown as { webkitAudioContext?: AC }).webkitAudioContext;
     if (!Ctor) {
-      onError('unsupported');
+      onError('unsupported', mkInfo('none', 0, 0));
       return;
     }
     startingRef.current = true;
@@ -120,7 +136,7 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
       resumed = Promise.resolve(ctx.resume()).catch(() => undefined);
     } catch {
       startingRef.current = false;
-      onError('unsupported');
+      onError('unsupported', mkInfo('none', 0, 0));
       return;
     }
     ctxRef.current = ctx;
@@ -131,8 +147,9 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
       streamRef.current = stream;
       await resumed;
       if (ctx.state !== 'running') {
+        const info = mkInfo(ctxStateOf(ctx), 0, 0);
         teardown();
-        onError('no_audio');
+        onError('no_audio', info);
         return;
       }
       const src = ctx.createMediaStreamSource(stream);
@@ -162,8 +179,9 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
       // iOS can deliver no buffers, or only silent ones. Bail out early instead of uploading nothing.
       watchRef.current = setTimeout(() => {
         if (chunksRef.current.length === 0 || peakRef.current < SILENCE_PEAK) {
+          const info = mkInfo(ctxStateOf(ctxRef.current), chunksRef.current.length, Date.now() - startedRef.current);
           finish(false);
-          onError('no_audio');
+          onError('no_audio', info);
         }
       }, WATCHDOG_MS);
       tickRef.current = setInterval(() => {
@@ -172,9 +190,13 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
         if (ms >= MAX_MS) finish(true);
       }, 100);
     } catch (err) {
+      const info = mkInfo(ctxStateOf(ctxRef.current), chunksRef.current.length, 0);
       teardown();
       const name = err instanceof DOMException ? err.name : '';
-      onError(name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError' ? 'denied' : 'failed');
+      onError(
+        name === 'NotAllowedError' || name === 'SecurityError' || name === 'PermissionDeniedError' ? 'denied' : 'failed',
+        info,
+      );
     } finally {
       startingRef.current = false;
     }

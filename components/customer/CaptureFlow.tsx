@@ -3,11 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ExtractedRequest, RelativeDeadline } from '@/lib/contracts';
-import type { ApiError, CreateRequestBody, CreateRequestResponse, InputMode, TranscribeResponse } from '@/lib/api-types';
+import type {
+  ApiError,
+  CreateRequestBody,
+  CreateRequestResponse,
+  InputMode,
+  TelemetryBody,
+  TranscribeResponse,
+} from '@/lib/api-types';
 import { formatDeadline, formatINR, resolveRelative, todayIST } from '@/lib/domain';
-import VoiceRecorder, { type RecorderErrorKind } from '@/components/VoiceRecorder';
+import VoiceRecorder, { type RecorderErrorKind, type RecorderInfo } from '@/components/VoiceRecorder';
 import { voiceErrorLine, type VoiceErrorKind } from '@/components/customer/voice-errors';
-import { isInAppBrowser } from '@/components/customer/inapp';
+import { browserFamily, isInAppBrowser } from '@/components/customer/inapp';
+import { sendTelemetry } from '@/components/customer/telemetry';
 
 type Stage = 'capture' | 'review';
 type Tag = 'rules' | 'ai' | 'basic' | null;
@@ -33,6 +41,17 @@ const fieldBase =
 const noticeBox = 'rounded-lg border border-warn/50 bg-warn/10 px-4 py-3 text-[16px] leading-snug text-ink';
 const chipIdle = `${chipBase} border-line bg-white/50 text-ink`;
 const chipOn = `${chipBase} border-ink bg-ink text-white`;
+
+function telemetry(stage: TelemetryBody['stage'], error: string, info?: RecorderInfo) {
+  sendTelemetry({
+    stage,
+    error,
+    browser: browserFamily(navigator.userAgent),
+    ctx_state: info?.ctx_state ?? 'none',
+    chunks: info?.chunks ?? 0,
+    duration_ms: info?.duration_ms ?? 0,
+  });
+}
 
 const storeKey = (slug: string) => `maang.capture.${slug}`;
 
@@ -226,16 +245,18 @@ export default function CaptureFlow({
   }, []);
 
   const onRecordError = useCallback(
-    (kind: RecorderErrorKind) => {
+    (kind: RecorderErrorKind, info?: RecorderInfo) => {
+      telemetry(kind === 'unsupported' ? 'tap' : kind === 'denied' ? 'permission' : 'recording', kind, info);
       showVoiceError(kind === 'unsupported' && inApp ? 'in_app' : kind);
     },
     [showVoiceError, inApp],
   );
 
   const onRecorded = useCallback(
-    async (blob: Blob) => {
+    async (blob: Blob, durationMs: number, info?: RecorderInfo) => {
       setTranscribing(true);
       setNotice(null);
+      telemetry('upload', '', info);
       let kind: VoiceErrorKind = 'server';
       try {
         const form = new FormData();
@@ -257,6 +278,7 @@ export default function CaptureFlow({
       } finally {
         setTranscribing(false);
       }
+      telemetry('transcribe', kind, info);
       showVoiceError(kind);
     },
     [showVoiceError, goReview],

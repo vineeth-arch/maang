@@ -53,3 +53,15 @@ export const notifyBodySchema = z.object({
 export const closeBodySchema = z.object({
   reason: z.enum(['cannot_meet_deadline', 'no_longer_needed', 'not_stockable', 'duplicate']),
 });
+
+// Mirrors TelemetryBody in lib/api-types.ts. No audio, text or phone ever goes through here.
+export const telemetrySchema = z
+  .object({
+    stage: z.enum(['tap', 'permission', 'recording', 'upload', 'transcribe']),
+    error: z.string().regex(/^[A-Za-z_]{0,40}$/),
+    browser: z.enum(['safari', 'chrome', 'firefox', 'samsung', 'in_app', 'other']),
+    ctx_state: z.enum(['running', 'suspended', 'closed', 'none']),
+    chunks: z.number().int().min(0).max(10000),
+    duration_ms: z.number().int().min(0).max(20000),
+  })
+  .strict();
