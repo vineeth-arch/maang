@@ -1,5 +1,11 @@
 // End-to-end smoke test. Usage:
 //   npx tsx --env-file=.env.local scripts/smoke/smoke.ts <baseUrl> [--bundle-dir .next/static]
+//     Read-only suite. GET requests only, plus rules-mode extract (writes nothing) and an unauthenticated
+//     reset POST that must 401. Safe against production.
+//   ... <baseUrl> --destructive
+//     Adds the destructive suite (resets and rewrites data). Runs only when /api/health reports db_role=test.
+//   ... <baseUrl> --destructive --demo-db
+//     Same, but also allowed on the shared demo database (db_role=prod). Warns and waits 5 s first.
 // Never prints env values, tokens or phone numbers.
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -20,11 +26,16 @@ import type {
   StockResponse,
 } from '../../lib/api-types';
 import { clusterKey } from '../../lib/domain';
+import { gate } from './gate';
 
 const SLUG = 'neighbourhood-toys';
 const CLUSTER = 'rc_car|rechargeable|1000';
 const TEXT = 'remote wali gaadi chahiye, rechargeable, 1000 ke andar, kal tak';
 const TIMEOUT_MS = 15_000;
+
+const PHONE_RE = /(?<![0-9*])[6-9][0-9]{9}(?![0-9])/;
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+const SLUG2 = 'electronics-andheri';
 
 let total = 0;
 let passed = 0;
@@ -60,12 +71,15 @@ function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(msg);
 }
 
+
 type Res<T> = { status: number; json: T; raw: string };
 
 const args = process.argv.slice(2);
 const baseArg = args.find((a) => !a.startsWith('--'));
 const bdIdx = args.indexOf('--bundle-dir');
 const bundleDir = bdIdx >= 0 ? args[bdIdx + 1] : undefined;
+const DESTRUCTIVE = args.includes('--destructive');
+const DEMO_DB = args.includes('--demo-db');
 
 function envVal(name: string): string | undefined {
   const v = process.env[name];
@@ -76,21 +90,16 @@ const MERCHANT_KEY = envVal('MERCHANT_KEY');
 const RESET_KEY = envVal('RESET_KEY');
 
 if (!baseArg) {
-  console.error('usage: smoke.ts <baseUrl> [--bundle-dir .next/static]');
+  console.error('usage: smoke.ts <baseUrl> [--destructive [--demo-db]] [--bundle-dir .next/static]');
   process.exit(2);
 }
 if (!MERCHANT_KEY) {
   console.error('MERCHANT_KEY not set');
   process.exit(2);
 }
-if (!RESET_KEY) {
-  console.error('RESET_KEY not set');
-  process.exit(2);
-}
 
 const BASE = baseArg.replace(/\/+$/, '');
 const MK: string = MERCHANT_KEY;
-const RK: string = RESET_KEY;
 
 async function http<T = unknown>(
   method: 'GET' | 'POST',
@@ -118,7 +127,11 @@ async function http<T = unknown>(
 const q = encodeURIComponent;
 const mpath = (rest: string) => `/api/merchant/${SLUG}/${rest}?k=${q(MK)}`;
 const getBoard = () => http<BoardResponse>('GET', mpath('board'));
-const resetCall = () => http<ResetResponse>('POST', '/api/admin/reset', { headers: { 'x-reset-key': RK } });
+const resetCall = () => {
+  assert(RESET_KEY, 'RESET_KEY not set');
+  return http<ResetResponse>('POST', '/api/admin/reset', { headers: { 'x-reset-key': RESET_KEY } });
+};
+
 
 async function board(): Promise<BoardResponse> {
   const r = await getBoard();
@@ -162,28 +175,197 @@ const addStock = (id: string, n: number) =>
   http<StockResponse>('POST', mpath('stock'), { body: { product_id: id, add_quantity: n } });
 const pickup = (id: string) => http<PickupResponse>('POST', mpath(`requests/${id}/pickup`));
 
-async function main(): Promise<void> {
-  let host = BASE;
-  try {
-    host = new URL(BASE).host;
-  } catch {
-    // keep raw
-  }
-  console.log(`Smoke test against ${host}`);
-
-  // Health precheck
-  try {
-    const h = await http('GET', '/api/health');
-    if (h.status !== 200) {
-      console.error(`FAIL health - GET /api/health returned ${h.status}; is the base URL correct?`);
-      process.exit(1);
+// ---------------------------------------------------------------------------------------------
+// Board privacy helpers (check 19)
+// ---------------------------------------------------------------------------------------------
+function forbiddenKeys(v: unknown, path = '$', hits: string[] = []): string[] {
+  if (Array.isArray(v)) v.forEach((x, i) => forbiddenKeys(x, `${path}[${i}]`, hits));
+  else if (v && typeof v === 'object') {
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+      const lk = k.toLowerCase();
+      if (lk === 'token' || lk === 'phone') hits.push(`${path}.${k}`);
+      forbiddenKeys(x, `${path}.${k}`, hits);
     }
-    pass('health', '200');
-  } catch (e) {
-    console.error(`FAIL health - cannot reach ${host}: ${e instanceof Error ? e.message : 'error'}`);
-    process.exit(1);
+  }
+  return hits;
+}
+function phoneMaskedValues(v: unknown, out: unknown[] = []): unknown[] {
+  if (Array.isArray(v)) v.forEach((x) => phoneMaskedValues(x, out));
+  else if (v && typeof v === 'object') {
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+      if (k === 'phone_masked') out.push(x);
+      else phoneMaskedValues(x, out);
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------------------------
+// READ-ONLY suite. Always runs. GET only, plus rules-mode extract (writes nothing) and the
+// unauthenticated reset POST (must 401, mutates nothing).
+// ---------------------------------------------------------------------------------------------
+async function readOnlySuite(): Promise<void> {
+  await check('1a extract rules item_key rc_car', async () => {
+    const ex = await http<ExtractResponse>('POST', '/api/capture/extract', {
+      body: { shopSlug: SLUG, text: TEXT, mode: 'rules' },
+    });
+    assert(ex.status === 200, `extract status ${ex.status}`);
+    assert(ex.json.item_key === 'rc_car', `item_key=${String(ex.json.item_key)}`);
+    return 'item_key rc_car';
+  });
+
+  await check('10 wrong token and unknown id', async () => {
+    const r1 = await http<Record<string, unknown>>(
+      'GET',
+      '/api/requests/00000000-0000-0000-0000-000000000001?t=wrong',
+    );
+    assert(r1.status === 404, `wrong token status ${r1.status}`);
+    const r2 = await http<Record<string, unknown>>('GET', '/api/requests/00000000-0000-0000-0000-000000000000?t=x');
+    assert(r2.status === 404, `unknown id status ${r2.status}`);
+    for (const r of [r1, r2]) {
+      const keys = Object.keys(r.json ?? {}).sort();
+      assert(keys.length === 2 && keys[0] === 'code' && keys[1] === 'error', `body keys=${keys.join(',')}`);
+    }
+    return '404 x2, body {error, code} only';
+  });
+
+  await check('11 merchant key required', async () => {
+    const r1 = await http('GET', `/api/merchant/${SLUG}/board`);
+    assert(r1.status === 401, `no key status ${r1.status}`);
+    const r2 = await http('GET', `/api/merchant/${SLUG}/board?k=wrong`);
+    assert(r2.status === 401, `wrong key status ${r2.status}`);
+    return '401 x2';
+  });
+
+  await check('12a reset without key is 401', async () => {
+    const r1 = await http('POST', '/api/admin/reset');
+    assert(r1.status === 401, `no key status ${r1.status}`);
+    const r2 = await http('POST', '/api/admin/reset', { headers: { 'x-reset-key': 'wrong' } });
+    assert(r2.status === 401, `wrong key status ${r2.status}`);
+    return '401 x2';
+  });
+
+  await check('14a speak without key is 401/404', async () => {
+    // No keyed speak here: it calls the paid TTS API. See 14b in the destructive suite.
+    const r1 = await http('POST', `/api/merchant/${SLUG}/speak`, { body: { kind: 'notified', count: 1 } });
+    assert(r1.status === 401 || r1.status === 404, `nokey status ${r1.status}`);
+    return `nokey ${r1.status}`;
+  });
+
+  // 15. Insights (MAC-4)
+  await check('15 insights store 1', async () => {
+    const r = await http<{ profile: { tier: string }; modules: string[]; insights: { items: Array<{ item_key: string; recommendation: string }>; daily: unknown[] } }>('GET', mpath('insights'));
+    assert(r.status === 200, `status ${r.status}`);
+    const rc = r.json.insights.items.find((i) => i.item_key === 'rc_car');
+    assert(rc?.recommendation === 'restock_now', `rc_car=${rc?.recommendation}`);
+    assert(r.json.insights.daily.length === 30, 'daily != 30');
+    const nokey = await http('GET', `/api/merchant/${SLUG}/insights`);
+    assert(nokey.status === 401, `nokey ${nokey.status}`);
+    return `tier ${r.json.profile.tier}, ${r.json.insights.items.length} items, RC car restock_now`;
+  });
+  await check('16 insights page renders', async () => {
+    const r = await http('GET', `/m/${SLUG}/insights?k=${q(MK)}`);
+    assert(r.status === 200, `status ${r.status}`);
+    return '200';
+  });
+
+  await check('17 insights store 2 location matrix', async () => {
+    const r = await http<{ profile: { tier: string }; modules: string[]; insights: { byStore?: Array<{ store_label: string }>; items: Array<{ item_key: string; by_store?: Array<{ store_label: string }> }> } }>(
+      'GET', `/api/merchant/electronics-andheri/insights?k=${q(MK)}`);
+    assert(r.status === 200, `status ${r.status}`);
+    assert(r.json.profile.tier === 'very_large', `tier ${r.json.profile.tier}`);
+    assert(r.json.modules.includes('matrix'), 'no matrix module');
+    assert((r.json.insights.byStore ?? []).length === 3, `stores ${(r.json.insights.byStore ?? []).length}`);
+    const lap = r.json.insights.items.find((i) => i.item_key === 'laptop');
+    assert(lap?.by_store?.[0]?.store_label === 'Noida', `laptop top ${lap?.by_store?.[0]?.store_label}`);
+    const b = await http<BoardResponse>('GET', `/api/merchant/electronics-andheri/board?k=${q(MK)}`);
+    assert(b.status === 200 && b.json.clusters.length >= 2, `store 2 board ${b.status}`);
+    return `very_large, 3 locations, laptops top in Noida, ${b.json.clusters.length} clusters`;
+  });
+
+  // 18. Store 2 board shape. Structure only: no reset, no seeded-count asserts (those are 18b).
+  await check('18 store 2 board shape (read-only)', async () => {
+    const r = await http<BoardResponse>('GET', `/api/merchant/${SLUG2}/board?k=${q(MK)}`);
+    assert(r.status === 200, `store 2 board status ${r.status}`);
+    const b = r.json;
+    assert(b.shop.slug === SLUG2, `shop slug=${b.shop.slug}`);
+    assert(typeof b.shop.name === 'string' && b.shop.name.length > 0, 'shop name missing');
+    assert(Array.isArray(b.clusters) && b.clusters.length > 0, 'no clusters');
+    for (const c of b.clusters) {
+      assert(typeof c.key === 'string', 'cluster key missing');
+      assert(Array.isArray(c.requests) && Array.isArray(c.eligible) && Array.isArray(c.rejected), `cluster ${c.key} arrays missing`);
+    }
+    assert(Array.isArray(b.products) && b.products.length > 0, 'no products');
+    for (const k of ['urgent', 'unclustered', 'expired'] as const) assert(Array.isArray(b[k]), `${k} not an array`);
+    assert(typeof b.metrics?.picked_up === 'number', 'metrics.picked_up missing');
+    return `${b.clusters.length} clusters, ${b.products.length} products`;
+  });
+
+  // 19. Store 2 spoken phrases land in seeded clusters (AI, non-deterministic, writes nothing)
+  {
+    const phrases: Array<{ text: string; item: string; key: string; ignoreBudget?: boolean }> = [
+      { text: 'Samsung Galaxy ka 256 GB blue chahiye, kal tak', item: 'samsung_galaxy', key: 'samsung_galaxy|256_gb,color:blue|any' },
+      { text: '55 inch ka TV 45000 ke andar, wall mount ke saath', item: 'tv', key: 'tv|size:55_inch,wall_mount|5000+' },
+      { text: 'noise cancelling earbuds 3000 ke andar', item: 'earbuds', key: 'earbuds|noise_cancelling|5000' },
+      { text: 'college ke liye laptop 16 GB RAM, Monday tak', item: 'laptop', key: 'laptop|16_gb_ram|', ignoreBudget: true },
+    ];
+    const name = '19a store 2 spoken phrases land in seeded clusters';
+    const results: ExtractResponse[] = [];
+    for (const p of phrases) {
+      const ex = await http<ExtractResponse>('POST', '/api/capture/extract', { body: { shopSlug: SLUG2, text: p.text } });
+      if (ex.status !== 200) {
+        await check(name, async () => {
+          throw new Error(`extract status ${ex.status}`);
+        });
+        results.length = 0;
+        break;
+      }
+      results.push(ex.json);
+    }
+    if (results.length === phrases.length) {
+      if (results.some((x) => x.mode === 'rules_fallback')) {
+        skip(name, 'AI unavailable (rules_fallback); non-deterministic check skipped');
+      } else {
+        await check(name, async () => {
+          const misses: string[] = [];
+          phrases.forEach((p, i) => {
+            const ex = results[i];
+            const ck = clusterKey(ex) ?? 'null';
+            const hit = ex.item_key === p.item && (p.ignoreBudget ? ck.startsWith(p.key) : ck === p.key);
+            console.log(`  item_key=${String(ex.item_key)} cluster=${ck} hit=${hit ? 'yes' : 'no'}`);
+            if (!hit) misses.push(`${p.item}: got item_key=${String(ex.item_key)} cluster=${ck}`);
+          });
+          assert(misses.length === 0, misses.join('; '));
+          return '4/4 phrases hit seeded clusters (laptop compared with budget bucket ignored)';
+        });
+      }
+    }
   }
 
+  // 19. Boards never expose a token or a phone number
+  await check('19 board has no phone or token', async () => {
+    const boards: BoardResponse[] = [];
+    for (const slug of [SLUG, SLUG2]) {
+      const r = await http<BoardResponse>('GET', `/api/merchant/${slug}/board?k=${q(MK)}`);
+      assert(r.status === 200, `${slug} board status ${r.status}`);
+      boards.push(r.json);
+    }
+    const keyHits = forbiddenKeys(boards);
+    assert(keyHits.length === 0, `forbidden keys at ${keyHits.slice(0, 5).join(', ')}`);
+    const masked = phoneMaskedValues(boards);
+    const badMasks = masked.filter((m) => m !== null && !(typeof m === 'string' && /^\*+\d{4}$/.test(m)));
+    assert(badMasks.length === 0, `${badMasks.length} phone_masked values are not null or ****1234 shaped`);
+    // UUIDs are removed first: a hex segment such as "a6123456789b" would otherwise look like a phone.
+    const text = JSON.stringify(boards).replace(UUID_RE, '');
+    assert(!PHONE_RE.test(text), 'board text contains an unmasked 10-digit mobile number');
+    return `2 boards, ${masked.length} phone_masked values, no token/phone keys`;
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// DESTRUCTIVE suite. Only when gate() says run or warn. Resets and rewrites data.
+// ---------------------------------------------------------------------------------------------
+async function destructiveSuite(): Promise<void> {
   let A: Made | undefined;
   let B: Made | undefined;
   let expectedNotify = -1;
@@ -208,14 +390,9 @@ async function main(): Promise<void> {
     await check(
       '1 create requests A and B',
       async () => {
-        const ex = await http<ExtractResponse>('POST', '/api/capture/extract', {
-          body: { shopSlug: SLUG, text: TEXT, mode: 'rules' },
-        });
-        assert(ex.status === 200, `extract status ${ex.status}`);
-        assert(ex.json.item_key === 'rc_car', `item_key=${String(ex.json.item_key)}`);
         A = await createRequest('9000000901', true, TEXT);
         B = await createRequest('9000000902', true, TEXT);
-        return 'item_key rc_car, A and B created (201)';
+        return 'A and B created (201)';
       },
       true,
     );
@@ -339,35 +516,17 @@ async function main(): Promise<void> {
       return 'status open, text verbatim, on board';
     });
 
-    // 10. Wrong token
-    await check('10 wrong token and unknown id', async () => {
-      const r1 = await http<Record<string, unknown>>('GET', `/api/requests/${a.id}?t=wrong`);
-      assert(r1.status === 404, `wrong token status ${r1.status}`);
-      const r2 = await http<Record<string, unknown>>(
-        'GET',
-        '/api/requests/00000000-0000-0000-0000-000000000000?t=x',
-      );
-      assert(r2.status === 404, `unknown id status ${r2.status}`);
-      for (const r of [r1, r2]) {
-        const keys = Object.keys(r.json ?? {}).sort();
-        assert(keys.length === 2 && keys[0] === 'code' && keys[1] === 'error', `body keys=${keys.join(',')}`);
-      }
-      return '404 x2, body {error, code} only';
+    // 10b. Wrong token on a request that exists (the read-only 10 only has unknown ids)
+    await check('10b wrong token on existing request', async () => {
+      const r = await http<Record<string, unknown>>('GET', `/api/requests/${a.id}?t=wrong`);
+      assert(r.status === 404, `wrong token status ${r.status}`);
+      return '404';
     });
 
-    // 11. Merchant key
-    await check('11 merchant key required', async () => {
-      const r1 = await http('GET', `/api/merchant/${SLUG}/board`);
-      assert(r1.status === 401, `no key status ${r1.status}`);
-      const r2 = await http('GET', `/api/merchant/${SLUG}/board?k=wrong`);
-      assert(r2.status === 401, `wrong key status ${r2.status}`);
-      return '401 x2';
-    });
+    // CX09_PLACEHOLDER
 
-    // 12. Reset
-    await check('12 reset guard and restore', async () => {
-      const r1 = await http('POST', '/api/admin/reset');
-      assert(r1.status === 401, `no key status ${r1.status}`);
+    // 12. Restore. The unauthenticated 401 is checked read-only in 12a.
+    await check('12 restore seed with keyed reset', async () => {
       const r2 = await resetCall();
       assert(r2.status === 200, `reset status ${r2.status}`);
       assert(r2.json.counts.requests === 6, `requests=${r2.json.counts.requests}`);
@@ -378,50 +537,25 @@ async function main(): Promise<void> {
         assert(stockOf(bd, id) === n, `${id} stock=${stockOf(bd, id)}, expected ${n}`);
       }
       assert(bd.metrics.captured === 6, `captured=${bd.metrics.captured}`);
-      return 'unauthorised 401, restored seed';
+      return 'restored seed';
     });
 
-    // 15. Insights (MAC-4)
-    await check('15 insights store 1', async () => {
-      const r = await http<{ profile: { tier: string }; modules: string[]; insights: { items: Array<{ item_key: string; recommendation: string }>; daily: unknown[] } }>('GET', mpath('insights'));
-      assert(r.status === 200, `status ${r.status}`);
-      const rc = r.json.insights.items.find((i) => i.item_key === 'rc_car');
-      assert(rc?.recommendation === 'restock_now', `rc_car=${rc?.recommendation}`);
-      assert(r.json.insights.daily.length === 30, 'daily != 30');
-      const nokey = await http('GET', `/api/merchant/${SLUG}/insights`);
-      assert(nokey.status === 401, `nokey ${nokey.status}`);
-      return `tier ${r.json.profile.tier}, ${r.json.insights.items.length} items, RC car restock_now`;
-    });
-    await check('16 insights page renders', async () => {
-      const r = await http('GET', `/m/${SLUG}/insights?k=${q(MK)}`);
-      assert(r.status === 200, `status ${r.status}`);
-      return '200';
+    // 14b. Keyed speak (calls the paid TTS API, hence not in the read-only suite)
+    await check('14b keyed speak', async () => {
+      const r2 = await http('POST', mpath('speak'), { body: { kind: 'notified', count: 1 } });
+      assert(r2.status === 503 || r2.status === 200 || r2.status === 404, `keyed status ${r2.status}`);
+      return `keyed ${r2.status}`;
     });
 
-    await check('17 insights store 2 location matrix', async () => {
-      const r = await http<{ profile: { tier: string }; modules: string[]; insights: { byStore?: Array<{ store_label: string }>; items: Array<{ item_key: string; by_store?: Array<{ store_label: string }> }> } }>(
-        'GET', `/api/merchant/electronics-andheri/insights?k=${q(MK)}`);
-      assert(r.status === 200, `status ${r.status}`);
-      assert(r.json.profile.tier === 'very_large', `tier ${r.json.profile.tier}`);
-      assert(r.json.modules.includes('matrix'), 'no matrix module');
-      assert((r.json.insights.byStore ?? []).length === 3, `stores ${(r.json.insights.byStore ?? []).length}`);
-      const lap = r.json.insights.items.find((i) => i.item_key === 'laptop');
-      assert(lap?.by_store?.[0]?.store_label === 'Noida', `laptop top ${lap?.by_store?.[0]?.store_label}`);
-      const b = await http<BoardResponse>('GET', `/api/merchant/electronics-andheri/board?k=${q(MK)}`);
-      assert(b.status === 200 && b.json.clusters.length >= 2, `store 2 board ${b.status}`);
-      return `very_large, 3 locations, laptops top in Noida, ${b.json.clusters.length} clusters`;
-    });
-
-    // 18. Store 2 seed, board, rejected TV (deterministic, read-only)
-    const S2 = 'electronics-andheri';
-    await check('18 store 2 seed, board, rejected TV', async () => {
+    // 18b. Store 2 seeded counts (reset-based, deterministic)
+    await check('18b store 2 seed, board, rejected TV', async () => {
       const rs = await resetCall();
       assert(rs.status === 200, `reset status ${rs.status}`);
       const s2 = (rs.json as { store2?: { products: number; requests: number } | null }).store2;
       assert(s2, 'reset result has no store2 counts (store 2 not seeded)');
       assert(s2.products === 6, `store2 products=${s2.products}`);
       assert(s2.requests === 17, `store2 requests=${s2.requests}`);
-      const r = await http<BoardResponse>('GET', `/api/merchant/${S2}/board?k=${q(MK)}`);
+      const r = await http<BoardResponse>('GET', `/api/merchant/${SLUG2}/board?k=${q(MK)}`);
       assert(r.status === 200, `store 2 board status ${r.status}`);
       assert(r.json.shop.name === 'Galaxy Digital, Andheri', `shop name=${r.json.shop.name}`);
       const want: Record<string, number> = {
@@ -445,63 +579,14 @@ async function main(): Promise<void> {
       assert(!r.json.clusters.some((c) => c.item_key === 'inverter_ac'), 'inverter_ac appears as an open cluster');
       return 'store2 6 products/17 requests, 4 clusters match, GD-TV-02 rejected (wall_mount)';
     });
-
-    // 19. Store 2 spoken phrases land in seeded clusters (AI, non-deterministic)
-    {
-      const phrases: Array<{ text: string; item: string; key: string; ignoreBudget?: boolean }> = [
-        { text: 'Samsung Galaxy ka 256 GB blue chahiye, kal tak', item: 'samsung_galaxy', key: 'samsung_galaxy|256_gb,color:blue|any' },
-        { text: '55 inch ka TV 45000 ke andar, wall mount ke saath', item: 'tv', key: 'tv|size:55_inch,wall_mount|5000+' },
-        { text: 'noise cancelling earbuds 3000 ke andar', item: 'earbuds', key: 'earbuds|noise_cancelling|5000' },
-        { text: 'college ke liye laptop 16 GB RAM, Monday tak', item: 'laptop', key: 'laptop|16_gb_ram|', ignoreBudget: true },
-      ];
-      const name = '19 store 2 spoken phrases land in seeded clusters';
-      const results: ExtractResponse[] = [];
-      for (const p of phrases) {
-        const ex = await http<ExtractResponse>('POST', '/api/capture/extract', { body: { shopSlug: S2, text: p.text } });
-        if (ex.status !== 200) {
-          await check(name, async () => {
-            throw new Error(`extract status ${ex.status}`);
-          });
-          results.length = 0;
-          break;
-        }
-        results.push(ex.json);
-      }
-      if (results.length === phrases.length) {
-        if (results.some((x) => x.mode === 'rules_fallback')) {
-          skip(name, 'AI unavailable (rules_fallback); non-deterministic check skipped');
-        } else {
-          await check(name, async () => {
-            const misses: string[] = [];
-            phrases.forEach((p, i) => {
-              const ex = results[i];
-              const ck = clusterKey(ex) ?? 'null';
-              const hit = ex.item_key === p.item && (p.ignoreBudget ? ck.startsWith(p.key) : ck === p.key);
-              console.log(`  item_key=${String(ex.item_key)} cluster=${ck} hit=${hit ? 'yes' : 'no'}`);
-              if (!hit) misses.push(`${p.item}: got item_key=${String(ex.item_key)} cluster=${ck}`);
-            });
-            assert(misses.length === 0, misses.join('; '));
-            return '4/4 phrases hit seeded clusters (laptop compared with budget bucket ignored)';
-          });
-        }
-      }
-    }
-
-    // 14. Speak guarded
-    await check('14 speak guarded', async () => {
-      const r1 = await http('POST', `/api/merchant/${SLUG}/speak`, { body: { kind: 'notified', count: 1 } });
-      assert(r1.status === 401 || r1.status === 404, `nokey status ${r1.status}`);
-      const r2 = await http('POST', mpath('speak'), { body: { kind: 'notified', count: 1 } });
-      const ok = r2.status === 503 || r2.status === 200 || (r2.status === 404 && r1.status === 404);
-      assert(ok, `keyed status ${r2.status}`);
-      return `nokey ${r1.status}, keyed ${r2.status}`;
-    });
   } catch (e) {
-    if (e instanceof Abort) console.log(`ABORT remaining HTTP checks skipped (${e.message})`);
+    if (e instanceof Abort) console.log(`ABORT remaining destructive checks skipped (${e.message})`);
     else throw e;
   }
+}
 
-  // 13. Bundle grep
+// 13. Bundle grep (read-only)
+async function bundleSuite(): Promise<void> {
   if (bundleDir && existsSync(bundleDir)) {
     await check('13 bundle has no secrets', async () => {
       const files: string[] = [];
@@ -518,7 +603,7 @@ async function main(): Promise<void> {
         ['SUPABASE_SERVICE_ROLE_KEY', envVal('SUPABASE_SERVICE_ROLE_KEY'), true],
         ['SARVAM_API_KEY', envVal('SARVAM_API_KEY'), true],
         ['MERCHANT_KEY', MK, false],
-        ['RESET_KEY', RK, false],
+        ['RESET_KEY', RESET_KEY, false],
       ];
       const active: Array<[string, string]> = [];
       for (const [name, val, needsLen] of secrets) {
@@ -538,6 +623,54 @@ async function main(): Promise<void> {
   } else {
     skip('13 bundle grep', 'no --bundle-dir given');
   }
+}
+
+async function main(): Promise<void> {
+  let host = BASE;
+  try {
+    host = new URL(BASE).host;
+  } catch {
+    // keep raw
+  }
+  console.log(`Smoke test against ${host}`);
+
+  // Health precheck; also reports which database this server is wired to.
+  let role: string | undefined;
+  try {
+    const h = await http<{ db_role?: string }>('GET', '/api/health');
+    if (h.status !== 200) {
+      console.error(`FAIL health - GET /api/health returned ${h.status}; is the base URL correct?`);
+      process.exit(1);
+    }
+    role = h.json?.db_role;
+    pass('health', `200, db_role=${String(role)}`);
+  } catch (e) {
+    console.error(`FAIL health - cannot reach ${host}: ${e instanceof Error ? e.message : 'error'}`);
+    process.exit(1);
+  }
+
+  const g = gate(role, { destructive: DESTRUCTIVE, demoDb: DEMO_DB });
+  if (g === 'refuse') {
+    console.error(`Destructive suite needs db_role=test (got ${String(role)})`);
+    process.exit(2);
+  }
+  if (g === 'run' || g === 'warn') {
+    if (!RESET_KEY) {
+      console.error('RESET_KEY not set (required for the destructive suite)');
+      process.exit(2);
+    }
+    if (g === 'warn') {
+      console.log('WARNING: running destructive checks on the DEMO database in 5 s, Ctrl-C to abort');
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+    await destructiveSuite();
+  } else {
+    skip('destructive suite', 'not requested (pass --destructive; needs db_role=test)');
+  }
+
+  // Read-only checks run after the destructive suite, which ends on a freshly seeded database.
+  await readOnlySuite();
+  await bundleSuite();
 }
 
 main()
