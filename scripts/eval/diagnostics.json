@@ -1,0 +1,38 @@
+[
+  {
+    "label": "exact_1",
+    "http_and_seconds": "200 8.749495",
+    "exit": 0,
+    "elapsed_ms": 8768,
+    "finish": "stop",
+    "valid_json": true,
+    "completion_tokens": 769
+  },
+  {
+    "label": "exact_2",
+    "http_and_seconds": "200 11.638642",
+    "exit": 0,
+    "elapsed_ms": 11662,
+    "finish": "stop",
+    "valid_json": true,
+    "completion_tokens": 1195
+  },
+  {
+    "label": "exact_3",
+    "http_and_seconds": "200 7.757599",
+    "exit": 0,
+    "elapsed_ms": 7785,
+    "finish": "stop",
+    "valid_json": true,
+    "completion_tokens": 836
+  },
+  {
+    "label": "say_ok_50",
+    "http_and_seconds": "200 0.566423",
+    "exit": 0,
+    "elapsed_ms": 592,
+    "finish": "length",
+    "valid_json": false,
+    "completion_tokens": 50
+  }
+]

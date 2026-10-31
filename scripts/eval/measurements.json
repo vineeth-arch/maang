@@ -1,0 +1,740 @@
+[
+  {
+    "id": "1",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "rc_car",
+        "got": "rc_car",
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "rechargeable"
+        ],
+        "got": [
+          "rechargeable"
+        ],
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 1000,
+        "got": 1000,
+        "pass": true
+      },
+      {
+        "field": "deadline_token",
+        "expected": "tomorrow",
+        "got": "2026-11-01",
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1078
+    }
+  },
+  {
+    "id": "1",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "rc_car",
+        "got": "rc_car",
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "rechargeable"
+        ],
+        "got": [
+          "rechargeable"
+        ],
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 1000,
+        "got": 1000,
+        "pass": true
+      },
+      {
+        "field": "deadline_token",
+        "expected": "tomorrow",
+        "got": "2026-11-01",
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 3
+    }
+  },
+  {
+    "id": "2",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "rc_car",
+        "got": "rc_car",
+        "pass": true
+      },
+      {
+        "field": "missing",
+        "expected": [
+          "max_budget",
+          "needed_by"
+        ],
+        "got": [
+          "max_budget",
+          "needed_by"
+        ],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 930
+    }
+  },
+  {
+    "id": "2",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "rc_car",
+        "got": "rc_car",
+        "pass": true
+      },
+      {
+        "field": "missing",
+        "expected": [
+          "max_budget",
+          "needed_by"
+        ],
+        "got": [
+          "max_budget",
+          "needed_by"
+        ],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1
+    }
+  },
+  {
+    "id": "3",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "rechargeable"
+        ],
+        "got": [
+          "rechargeable"
+        ],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1068
+    }
+  },
+  {
+    "id": "3",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "rechargeable"
+        ],
+        "got": [
+          "rechargeable"
+        ],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1
+    }
+  },
+  {
+    "id": "4",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "urgent",
+        "expected": true,
+        "got": true,
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 826
+    }
+  },
+  {
+    "id": "4",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "urgent",
+        "expected": true,
+        "got": true,
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 0
+    }
+  },
+  {
+    "id": "5",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "gift_hamper",
+        "got": "gift_hamper",
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 500,
+        "got": 500,
+        "pass": true
+      },
+      {
+        "field": "deadline_token",
+        "expected": "this_weekend",
+        "got": "2026-11-01",
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1001
+    }
+  },
+  {
+    "id": "5",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "gift_hamper",
+        "got": "gift_hamper",
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 500,
+        "got": 500,
+        "pass": true
+      },
+      {
+        "field": "deadline_token",
+        "expected": "this_weekend",
+        "got": null,
+        "pass": false
+      }
+    ],
+    "latencies": {
+      "extract": 0
+    }
+  },
+  {
+    "id": "6",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "jigsaw_puzzle",
+        "got": "jigsaw_puzzle",
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "pieces:1000"
+        ],
+        "got": [
+          "pieces:1000"
+        ],
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 800,
+        "got": 800,
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1024
+    }
+  },
+  {
+    "id": "6",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "jigsaw_puzzle",
+        "got": "jigsaw_puzzle",
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "pieces:1000"
+        ],
+        "got": [
+          "pieces:1000"
+        ],
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 800,
+        "got": 800,
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 0
+    }
+  },
+  {
+    "id": "7",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "gift_hamper",
+        "got": "gift_hamper",
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 500,
+        "got": 500,
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 877
+    }
+  },
+  {
+    "id": "7",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "gift_hamper",
+        "got": "gift_hamper",
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 500,
+        "got": 500,
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 0
+    }
+  },
+  {
+    "id": "8",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "cricket_bat",
+        "got": "cricket_bat",
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "size:5"
+        ],
+        "got": [
+          "size:5"
+        ],
+        "pass": true
+      },
+      {
+        "field": "deadline_token",
+        "expected": "day_after",
+        "got": "2026-11-02",
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1009
+    }
+  },
+  {
+    "id": "8",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "cricket_bat",
+        "got": "cricket_bat",
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "size:5"
+        ],
+        "got": [
+          "size:5"
+        ],
+        "pass": true
+      },
+      {
+        "field": "deadline_token",
+        "expected": "day_after",
+        "got": "2026-11-02",
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 0
+    }
+  },
+  {
+    "id": "9",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "max_budget",
+        "expected": 2000,
+        "got": 2000,
+        "pass": true
+      },
+      {
+        "field": "soft_preferences",
+        "expected": "red",
+        "got": [],
+        "pass": false
+      },
+      {
+        "field": "forbidden_hard_prefix",
+        "expected": "color:",
+        "got": [
+          "color:laal"
+        ],
+        "pass": false
+      }
+    ],
+    "latencies": {
+      "extract": 1100
+    }
+  },
+  {
+    "id": "9",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "max_budget",
+        "expected": 2000,
+        "got": 2000,
+        "pass": true
+      },
+      {
+        "field": "soft_preferences",
+        "expected": "red",
+        "got": [],
+        "pass": false
+      },
+      {
+        "field": "forbidden_hard_prefix",
+        "expected": "color:",
+        "got": [],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1
+    }
+  },
+  {
+    "id": "10",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item",
+        "expected": null,
+        "got": null,
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [],
+        "got": [],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 761
+    }
+  },
+  {
+    "id": "10",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item",
+        "expected": null,
+        "got": null,
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [],
+        "got": [],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1
+    }
+  },
+  {
+    "id": "11",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "cake",
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "eggless"
+        ],
+        "got": [],
+        "pass": false
+      }
+    ],
+    "latencies": {
+      "extract": 784
+    }
+  },
+  {
+    "id": "11",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "cake",
+        "got": "cake",
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "eggless"
+        ],
+        "got": [
+          "eggless"
+        ],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 0
+    }
+  },
+  {
+    "id": "12",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "rc_car",
+        "got": "rc_car",
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "rechargeable"
+        ],
+        "got": [
+          "rechargeable"
+        ],
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 1000,
+        "got": 1000,
+        "pass": true
+      },
+      {
+        "field": "deadline_token",
+        "expected": "tomorrow",
+        "got": "2026-11-01",
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 976
+    }
+  },
+  {
+    "id": "12",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "rc_car",
+        "got": "rc_car",
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "rechargeable"
+        ],
+        "got": [
+          "rechargeable"
+        ],
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 1000,
+        "got": 1000,
+        "pass": true
+      },
+      {
+        "field": "deadline_token",
+        "expected": "tomorrow",
+        "got": "2026-11-01",
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1
+    }
+  },
+  {
+    "id": "13",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "rc_car",
+        "got": "rc_car",
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": null,
+        "got": null,
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 625
+    }
+  },
+  {
+    "id": "13",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "rc_car",
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "max_budget",
+        "expected": null,
+        "got": null,
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 0
+    }
+  },
+  {
+    "id": "14",
+    "mode": "ai",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": [
+          "car",
+          "rc_car"
+        ],
+        "got": "car",
+        "pass": true
+      },
+      {
+        "field": "missing",
+        "expected": [
+          "max_budget",
+          "needed_by"
+        ],
+        "got": [
+          "max_budget",
+          "needed_by"
+        ],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 578
+    }
+  },
+  {
+    "id": "14",
+    "mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": [
+          "car",
+          "rc_car"
+        ],
+        "got": "car",
+        "pass": true
+      },
+      {
+        "field": "missing",
+        "expected": [
+          "max_budget",
+          "needed_by"
+        ],
+        "got": [
+          "max_budget",
+          "needed_by"
+        ],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 0
+    }
+  }
+]
