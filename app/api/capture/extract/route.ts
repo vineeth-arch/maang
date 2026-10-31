@@ -16,10 +16,16 @@ export async function POST(req: Request) {
     const parsed = extractBodySchema.safeParse(await readJson(req));
     if (!parsed.success) return jsonError(400, 'bad_request');
     const { shopSlug, text, mode } = parsed.data;
-    const shop = await getShop(shopSlug);
-    if (!shop) return notFound();
     const today = todayIST();
-    const hints = { item_keys: [...new Set((await getProducts(shop.id)).map((p) => p.item_key))] };
+    // Extraction must never fail the customer: if the DB is unreachable, extract without catalogue hints.
+    let hints: { item_keys: string[] } | undefined;
+    try {
+      const shop = await getShop(shopSlug);
+      if (!shop) return notFound();
+      hints = { item_keys: [...new Set((await getProducts(shop.id)).map((p) => p.item_key))] };
+    } catch (e) {
+      console.error('[api] extract: catalogue lookup failed, continuing without hints:', (e as Error).message);
+    }
 
     if (mode === 'rules') return json(extractRules(text, today, hints));
 
