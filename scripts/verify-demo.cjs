@@ -24,7 +24,7 @@ const secrets = ['MERCHANT_KEY','RESET_KEY','SUPABASE_SERVICE_ROLE_KEY','SARVAM_
   const r = await page.goto(`http://localhost:3100${path}`);
   assert.equal(r.status(),200);
   await page.getByText('Demo view, synthetic data',{exact:true}).waitFor();
-  if(path.endsWith('/board')) await page.getByRole('heading',{level:1}).filter({hasText:/demo|Galaxy|Neighbourhood/i}).waitFor();
+  if(path.endsWith('/board')) await page.getByRole('heading',{level:1,name:path.includes('/toys/') ? 'Neighbourhood Toys (demo)' : 'Galaxy Digital, Andheri',exact:true}).waitFor();
   if(path.endsWith('/insights')) await page.getByTestId('headline').waitFor();
   if(path.endsWith('/settings')) {
    if (!responses.length) await page.waitForResponse(r=>r.url().includes('/api/demo/insights/') && r.status()===200);
@@ -48,7 +48,8 @@ const secrets = ['MERCHANT_KEY','RESET_KEY','SUPABASE_SERVICE_ROLE_KEY','SARVAM_
    const label=(await button.innerText()).trim();
    if(/Save|batao|Notify|Reserve|Pickup|Le gaye|Nahi ho|Soundbox|Cannot meet|Not stockable|Duplicate|No longer needed/i.test(label)) assert.ok(await button.isDisabled(), `enabled write control ${label}`);
   }
-  if(await stock.count()) { const close = page.getByRole('button',{name:'Close',exact:true}); if(await close.count()) await close.first().click(); }
+  if(await stock.count()) { const close = page.getByRole('button',{name:'Band karo',exact:true}); if(await close.count()) await close.first().click(); }
+  while(await page.getByRole('button',{name:/^Hide \d+ requests$/}).count()) await page.getByRole('button',{name:/^Hide \d+ requests$/}).first().click();
   for(const response of responses) {
    assert.equal(response.status(),200); const text=await response.text();
    assert.ok(!secrets.some(s=>text.includes(s)), 'secret response');

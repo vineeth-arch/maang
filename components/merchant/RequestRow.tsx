@@ -92,7 +92,7 @@ export function RequestRow({ r, ctx, highlight }: { r: BoardRequest; ctx: Ctx; h
         {r.max_budget !== null && <Chip>under {formatINR(r.max_budget)}</Chip>}
         {r.needed_by !== null && <Chip>{r.needed_by_label ?? formatDeadline(r.needed_by, ctx.today)}</Chip>}
         <StatusPill status={r.status} />
-        <span className="label-mono text-board-fg/70">{r.phone_masked ?? 'no consent'}</span>
+        <span className="label-mono text-board-fg/70">{ctx.demo ? 'Contact hidden in demo' : r.phone_masked ?? 'no consent'}</span>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {r.status === 'reserved' && (

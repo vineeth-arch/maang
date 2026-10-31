@@ -288,7 +288,7 @@ export function Board({ shop, k, demo = false }: { shop: string; k: string; demo
             disabled={demo}
             aria-expanded={showQr}
             onClick={() => setShowQr((s) => !s)}
-            className="label-mono min-h-12 rounded-md border border-board-fg/40 px-4 text-board-fg"
+            className="label-mono min-h-12 rounded-md border border-board-fg/40 px-4 text-board-fg disabled:cursor-not-allowed disabled:opacity-40"
           >
             Counter QR
           </button>
@@ -297,7 +297,7 @@ export function Board({ shop, k, demo = false }: { shop: string; k: string; demo
               type="button"
               disabled={demo}
               onClick={() => void unlockSound()}
-              className="label-mono min-h-12 rounded-md border border-board-fg/40 px-4 text-board-fg"
+              className="label-mono min-h-12 rounded-md border border-board-fg/40 px-4 text-board-fg disabled:cursor-not-allowed disabled:opacity-40"
             >
               Soundbox voice on
             </button>

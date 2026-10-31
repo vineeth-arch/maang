@@ -47,6 +47,7 @@ Never run smoke, QA, eval or reset for this change. Run:
 
 ```sh
 npm run test:unit
+npx next typegen
 npx tsc --noEmit
 npx eslint app/ components/ lib/
 npm run build
@@ -156,3 +157,13 @@ Merged at 2ad1a73: lib/voice.ts exports sarvamLane. Rollback: set SARVAM_EXTRACT
 
 ## Freeze
 Frozen at tag demo-v1. Any later change goes on a hotfix/* branch and merges only if smoke passes again.
+
+## DEMO-MODE verification — 2026-10-31
+
+- 70 unit tests passed, including allowlist, recursive secret/contact redaction, unchanged real auth and limiter tests.
+- `next typegen`, `tsc --noEmit`, ESLint on app/components/lib, and production build passed.
+- Soundbox-enabled production build: all 21 fresh-context page/viewport cases passed (1440, 390, 360).
+- Six missing/wrong-key merchant screens passed; no-key merchant board/Insights APIs returned 401 for both stores.
+- Unknown demo slugs returned 404. Noindex, key-free GET-only traffic, disabled write controls and local settings preview passed.
+- Client-secret scan passed across 41 static files. Screenshots visually reviewed for loaded data and responsive layout.
+- No smoke, QA, eval, reset or database write was run. Production verification uses GET only.

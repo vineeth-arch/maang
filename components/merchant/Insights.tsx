@@ -160,7 +160,7 @@ export function Insights({ shop, k, demo = false }: { shop: string; k: string; d
 
       <section aria-label="Headline" className="mt-7 rounded-insights-card border border-insights-teal/15 border-l-4 border-l-insights-teal bg-insights-teal-soft p-4 sm:p-6">
         <p className="font-display text-xl font-semibold leading-snug text-insights-ink sm:text-3xl" data-testid="headline">{ins.headline}</p>
-        <button type="button" disabled={demo} onClick={() => void speak()} className="label-mono mt-4 min-h-12 rounded-lg bg-insights-teal px-5 text-white shadow-insights-card transition-colors hover:bg-insights-ink focus-visible:outline-insights-teal">
+        <button type="button" disabled={demo} onClick={() => void speak()} className="disabled:cursor-not-allowed disabled:opacity-40 label-mono mt-4 min-h-12 rounded-lg bg-insights-teal px-5 text-white shadow-insights-card transition-colors hover:bg-insights-ink focus-visible:outline-insights-teal">
           Soundbox par suno
         </button>
         {say && <p role="status" className="label-mono mt-2 text-insights-muted">{say}</p>}
