@@ -7,6 +7,7 @@ import type { ApiError, CreateRequestBody, CreateRequestResponse, InputMode, Tra
 import { formatDeadline, formatINR, resolveRelative, todayIST } from '@/lib/domain';
 import VoiceRecorder, { type RecorderErrorKind } from '@/components/VoiceRecorder';
 import { voiceErrorLine, type VoiceErrorKind } from '@/components/customer/voice-errors';
+import { isInAppBrowser } from '@/components/customer/inapp';
 
 type Stage = 'capture' | 'review';
 type Tag = 'rules' | 'ai' | 'basic' | null;
@@ -89,6 +90,9 @@ export default function CaptureFlow({
   const [inputMode, setInputMode] = useState<InputMode>('typed');
   const [notice, setNotice] = useState<string | null>(null);
   const [transcribing, setTranscribing] = useState(false);
+  const [inApp, setInApp] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showUrl, setShowUrl] = useState(false);
 
   const [result, setResult] = useState<ExtractedRequest | null>(null);
   const [tag, setTag] = useState<Tag>(null);
@@ -103,6 +107,7 @@ export default function CaptureFlow({
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const typedRef = useRef<HTMLTextAreaElement>(null);
+  const urlRef = useRef<HTMLInputElement>(null);
   const draftRef = useRef('');
   const seqRef = useRef(0);
   const firstRunRef = useRef(true);
@@ -132,6 +137,33 @@ export default function CaptureFlow({
       live = false;
     };
   }, [shopSlug]);
+
+  // In-app browsers (Instagram, WhatsApp...) can't use the mic. Detected after mount so the server HTML matches.
+  useEffect(() => {
+    let live = true;
+    queueMicrotask(() => {
+      if (live) setInApp(isInAppBrowser(navigator.userAgent));
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showUrl) {
+      urlRef.current?.focus();
+      urlRef.current?.select();
+    }
+  }, [showUrl]);
+
+  const copyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      setCopied(true);
+    } catch {
+      setShowUrl(true);
+    }
+  }, []);
 
   // Mirror transcript.
   useEffect(() => {
@@ -195,9 +227,9 @@ export default function CaptureFlow({
 
   const onRecordError = useCallback(
     (kind: RecorderErrorKind) => {
-      showVoiceError(kind);
+      showVoiceError(kind === 'unsupported' && inApp ? 'in_app' : kind);
     },
-    [showVoiceError],
+    [showVoiceError, inApp],
   );
 
   const onRecorded = useCallback(
@@ -339,6 +371,29 @@ export default function CaptureFlow({
       {stage === 'capture' && (
         <section className="mt-8 flex flex-1 flex-col">
           <h1 className="font-display text-[2.2rem] font-semibold leading-[1.05]">Nahi mila? Bolo, kya chahiye.</h1>
+
+          {inApp && (
+            <div className={`mt-6 ${noticeBox}`}>
+              <p>Yeh link Safari ya Chrome mein kholein, mic wahan chalega.</p>
+              <button
+                type="button"
+                onClick={() => void copyLink()}
+                className="mt-3 min-h-12 rounded-md border border-ink px-4 text-[16px] text-ink transition-transform active:scale-[0.98]"
+              >
+                {copied ? 'Copy ho gaya' : 'Link copy karein'}
+              </button>
+              {showUrl && (
+                <input
+                  ref={urlRef}
+                  readOnly
+                  aria-label="Link"
+                  value={typeof location === 'undefined' ? '' : location.href}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className={`${fieldBase} mt-3 min-h-12 bg-white/70 px-3 text-[15px]`}
+                />
+              )}
+            </div>
+          )}
 
           <div className="mt-8 flex flex-col items-center">
             <VoiceRecorder onRecorded={onRecorded} onError={onRecordError} disabled={transcribing} />
