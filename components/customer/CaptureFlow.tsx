@@ -383,7 +383,7 @@ export default function CaptureFlow({
                     const t = draftRef.current.trim();
                     if (t) goReview(t, 'typed');
                   }}
-                  className="min-h-12 rounded-md bg-ink px-6 text-[16px] font-medium text-white transition-transform active:scale-[0.98]"
+                  className="min-h-12 rounded-md bg-primary px-6 text-[16px] font-medium text-white transition-transform active:scale-[0.98]"
                 >
                   Aage
                 </button>
@@ -542,7 +542,7 @@ export default function CaptureFlow({
               type="button"
               onClick={() => void submit()}
               disabled={submitting || !text.trim()}
-              className="min-h-14 rounded-md bg-ink px-6 text-[17px] font-medium text-white transition-transform active:scale-[0.98] disabled:opacity-50"
+              className="min-h-14 rounded-md bg-primary px-6 text-[17px] font-medium text-white transition-transform active:scale-[0.98] disabled:opacity-50"
             >
               {submitting ? 'Bhej rahe hain…' : submitError ? 'Phir se bhejein' : 'Dukaan ko bhejo'}
             </button>

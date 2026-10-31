@@ -1,30 +1,46 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #FFFFFF;
-  --ink: #17130F;
-  --muted: #6B665C;
-  --line: #CFCABD;
-  --accent: #FF0A6C;
-  --ok: #1A6B43;
-  --warn: #9A4708;
-  --danger: #B42318;
-  /* Merchant board (dark, projector) */
+  /* MAC-6 light design tokens */
+  --canvas: #FAFAF6;
+  --card: #FFFFFF;
+  --secondary: #637181;
+  --primary: #087F73;
+  --festival: #D78300;
+  --rising: #20865A;
+  --watch: #A96500;
+  --falling: #D64D4D;
+  --urgent: #D64D4D;
+  --chart-blue: #4878D0;
+  --chart-pink: #CC6690;
+  /* AA text shades of rising/urgent (raw tokens are under 4.5:1 as small text) */
+  --rising-text: #1C7A51;
+  --urgent-text: #B83A3A;
+
+  --bg: #FFFFFF; /* white app background per 5884649 */
+  --ink: #18212B;
+  --muted: var(--secondary);
+  --line: #E4E7E2;
+  --accent: var(--primary);
+  --ok: var(--rising);
+  --warn: var(--watch);
+  --danger: var(--urgent-text);
+  /* Merchant board (light) */
   --board-bg: var(--bg);
   --board-fg: var(--ink);
-  --board-error: #FF8A7A;
-  --board-ok: #4CC38A;
-  --counter-captured: #FFFFFF;
-  --counter-notified: #F5C26B;
-  --counter-reserved: #7CC4FA;
-  --counter-picked: #4CC38A;
+  --board-error: var(--urgent-text);
+  --board-ok: var(--rising-text);
+  --counter-captured: var(--ink);
+  --counter-notified: var(--watch);
+  --counter-reserved: var(--chart-blue);
+  --counter-picked: var(--rising);
 
   /* Insights design system: bright retail canvas with semantic data color. */
   --insights-canvas: #FFFFFF;
   --insights-surface: #FFFFFF;
   --insights-ink: #18212B;
   --insights-muted: #637181;
-  --insights-border: #E4E8E3;
+  --insights-border: #E4E7E2;
   --insights-teal: #087F73;
   --insights-teal-soft: #E5F5F1;
   --insights-saffron: #D78300;
@@ -56,6 +72,10 @@
   --color-counter-notified: var(--counter-notified);
   --color-counter-reserved: var(--counter-reserved);
   --color-counter-picked: var(--counter-picked);
+  --color-card: var(--card);
+  --color-primary: var(--primary);
+  --color-rising: var(--rising);
+  --color-rising-text: var(--rising-text);
   --color-insights-canvas: var(--insights-canvas);
   --color-insights-surface: var(--insights-surface);
   --color-insights-ink: var(--insights-ink);

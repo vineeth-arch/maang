@@ -7,14 +7,14 @@ import { TIER_INFO, type ItemInsight } from '@/lib/insights-entry';
 import type { InsightsResponse } from '@/lib/server/insights';
 
 const REC: Record<ItemInsight['recommendation'], { text: string; cls: string }> = {
-  restock_now: { text: 'Restock now', cls: 'border-insights-teal bg-insights-teal text-white' },
-  watch: { text: 'Watch', cls: 'border-insights-amber/30 bg-insights-amber-soft text-insights-amber' },
+  restock_now: { text: 'Restock now', cls: 'border-rising bg-rising text-white' },
+  watch: { text: 'Watch', cls: 'border-insights-amber/30 bg-insights-amber-soft text-[#8F5500]' },
   skip: { text: 'Skip', cls: 'border-insights-border bg-insights-canvas text-insights-muted' },
 };
 const TREND = {
-  rising: { label: '↑ Rising', cls: 'bg-insights-green-soft text-insights-green' },
+  rising: { label: '↑ Rising', cls: 'bg-insights-green-soft text-rising-text' },
   steady: { label: '→ Steady', cls: 'bg-insights-canvas text-insights-muted' },
-  falling: { label: '↓ Falling', cls: 'bg-insights-coral-soft text-insights-coral' },
+  falling: { label: '↓ Falling', cls: 'bg-insights-coral-soft text-[#B83A3A]' },
 } as const;
 const hourLabel = (h: number | null) => (h === null ? '–' : `${((h + 11) % 12) + 1} ${h < 12 ? 'am' : 'pm'}`);
 
@@ -167,7 +167,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
           {ins.upcoming.map((u, index) => (
             <li key={u.id} className={`min-w-40 shrink-0 rounded-insights-card border p-3.5 shadow-insights-card ${index === 0 ? 'border-insights-saffron/35 bg-insights-saffron-soft' : 'border-insights-border bg-insights-surface'}`}>
               <p className="font-display text-lg font-semibold text-insights-ink">{u.name}</p>
-              <p className="label-mono mt-1 text-insights-saffron">{u.days_away === 0 ? 'Today' : `In ${u.days_away} days`}</p>
+              <p className="label-mono mt-1 text-[#8F5500]">{u.days_away === 0 ? 'Today' : `In ${u.days_away} days`}</p>
             </li>
           ))}
           {ins.upcoming.length === 0 && <li className="text-insights-muted">No festivals or sales soon.</li>}
@@ -217,7 +217,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
                 </div>
               </div>
               {i.urgent_lost > 0 && (
-                <p className="label-mono mt-3 inline-flex rounded-full border border-insights-coral/20 bg-insights-coral-soft px-3 py-1.5 text-insights-coral">
+                <p className="label-mono mt-3 inline-flex rounded-full border border-insights-coral/20 bg-insights-coral-soft px-3 py-1.5 text-[#B83A3A]">
                   {i.urgent_lost} urgent {i.urgent_lost === 1 ? 'request' : 'requests'} lost
                 </p>
               )}
@@ -245,7 +245,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
                     <td className="pr-3"><span className={`label-mono rounded-full px-2 py-1 ${TREND[i.trend].cls}`}>{TREND[i.trend].label}</span></td>
                     <td className="pr-3">{i.budget_median_inr === null ? '–' : formatINR(i.budget_median_inr)}</td>
                     <td className="pr-3">{formatINR(i.demand_value_inr)}</td>
-                    <td className="pr-3">{i.events[0] ? <span className="rounded-full bg-insights-saffron-soft px-2 py-1 text-insights-amber">{i.events[0].name} ({i.events[0].days_away}d)</span> : '–'}</td>
+                    <td className="pr-3">{i.events[0] ? <span className="rounded-full bg-insights-saffron-soft px-2 py-1 text-[#8F5500]">{i.events[0].name} ({i.events[0].days_away}d)</span> : '–'}</td>
                     <td className="pr-3"><span className={`label-mono rounded-full border px-2 py-1 ${REC[i.recommendation].cls}`}>{REC[i.recommendation].text}</span></td>
                   </tr>
                 ))}
@@ -275,7 +275,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
           <ul className="space-y-2">
             {stores.map((s) => (
               <li key={s.store_id}>
-                <p className="label-mono text-insights-muted">{s.store_label}: <span className="font-semibold text-insights-cobalt">{s.count}</span></p>
+                <p className="label-mono text-insights-muted">{s.store_label}: <span className="font-semibold text-[#3A64B5]">{s.count}</span></p>
                 <div className="mt-1 h-3 overflow-hidden rounded-full bg-insights-canvas">
                   <div className="h-full rounded-full bg-insights-cobalt" style={{ width: `${(s.count / Math.max(...stores.map((x) => x.count))) * 100}%` }} />
                 </div>

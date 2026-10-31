@@ -265,7 +265,7 @@ export function Board({ shop, k }: { shop: string; k: string }) {
           {restock && (
             <a
               href={`/m/${encodeURIComponent(shop)}/insights?k=${encodeURIComponent(k)}`}
-              className="mt-3 inline-block text-lg font-semibold underline underline-offset-4"
+              className="mt-3 inline-block text-lg font-semibold text-rising-text underline underline-offset-4"
             >
               {restock}
             </a>
