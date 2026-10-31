@@ -1,0 +1,389 @@
+[
+  {
+    "id": "xv-salon",
+    "mode": "rules",
+    "ms": 1,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": [
+          "haircut",
+          "haircut_beard_trim"
+        ],
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "max_budget",
+        "expected": 600,
+        "got": 600,
+        "pass": true
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-10-31",
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "soft_preferences_contains",
+        "expected": "female",
+        "got": [],
+        "pass": false
+      }
+    ]
+  },
+  {
+    "id": "xv-salon",
+    "mode": "ai",
+    "ms": 991,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": [
+          "haircut",
+          "haircut_beard_trim"
+        ],
+        "got": "haircut_beard_trim",
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 600,
+        "got": 600,
+        "pass": true
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-10-31",
+        "got": "2026-11-01",
+        "pass": false
+      },
+      {
+        "field": "soft_preferences_contains",
+        "expected": "female",
+        "got": [
+          "female_stylist"
+        ],
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "xv-facial",
+    "mode": "rules",
+    "ms": 1,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "facial",
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-11-01",
+        "got": "2026-11-01",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "xv-facial",
+    "mode": "ai",
+    "ms": 711,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "facial",
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-11-01",
+        "got": "2026-11-01",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "xv-salon-chain",
+    "mode": "rules",
+    "ms": 0,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "hair_spa",
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-10-31",
+        "got": null,
+        "pass": false
+      }
+    ]
+  },
+  {
+    "id": "xv-salon-chain",
+    "mode": "ai",
+    "ms": 725,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "hair_spa",
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-10-31",
+        "got": "2026-11-01",
+        "pass": false
+      }
+    ]
+  },
+  {
+    "id": "xv-electronics-phone",
+    "mode": "rules",
+    "ms": 0,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": [
+          "phone",
+          "smartphone",
+          "mobile_phone"
+        ],
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "brand:samsung",
+          "color:blue"
+        ],
+        "got": [],
+        "pass": false
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-11-01",
+        "got": "2026-11-01",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "xv-electronics-phone",
+    "mode": "ai",
+    "ms": 856,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": [
+          "phone",
+          "smartphone",
+          "mobile_phone"
+        ],
+        "got": "samsung_galaxy",
+        "pass": false
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "brand:samsung",
+          "color:blue"
+        ],
+        "got": [
+          "color:blue"
+        ],
+        "pass": false
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-11-01",
+        "got": "2026-11-01",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "xv-electronics-tv",
+    "mode": "rules",
+    "ms": 0,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": [
+          "tv",
+          "television"
+        ],
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "max_budget",
+        "expected": 45000,
+        "got": 45000,
+        "pass": true
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-11-01",
+        "got": null,
+        "pass": false
+      }
+    ]
+  },
+  {
+    "id": "xv-electronics-tv",
+    "mode": "ai",
+    "ms": 1084,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": [
+          "tv",
+          "television"
+        ],
+        "got": "tv",
+        "pass": true
+      },
+      {
+        "field": "max_budget",
+        "expected": 45000,
+        "got": 45000,
+        "pass": true
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-11-01",
+        "got": "2026-11-01",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "xv-pharmacy",
+    "mode": "rules",
+    "ms": 0,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": [
+          "dolo",
+          "dolo_650",
+          "paracetamol"
+        ],
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "max_budget",
+        "expected": null,
+        "got": null,
+        "pass": true
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-10-31",
+        "got": "2026-10-31",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "xv-pharmacy",
+    "mode": "ai",
+    "ms": 1956,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": [
+          "dolo",
+          "dolo_650",
+          "paracetamol"
+        ],
+        "got": "dolo_650_tablet",
+        "pass": false
+      },
+      {
+        "field": "max_budget",
+        "expected": null,
+        "got": null,
+        "pass": true
+      },
+      {
+        "field": "needed_by",
+        "expected": "2026-10-31",
+        "got": "2026-10-31",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "id": "xv-apparel",
+    "mode": "rules",
+    "ms": 0,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "kurta",
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "size:xl",
+          "color:maroon"
+        ],
+        "got": [],
+        "pass": false
+      }
+    ]
+  },
+  {
+    "id": "xv-apparel",
+    "mode": "ai",
+    "ms": 822,
+    "error": "",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "kurta",
+        "got": "kurta",
+        "pass": true
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "size:xl",
+          "color:maroon"
+        ],
+        "got": [
+          "size:xl",
+          "color:maroon"
+        ],
+        "pass": true
+      }
+    ]
+  }
+]

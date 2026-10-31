@@ -269,3 +269,151 @@ SARVAM_EXTRACT_MODE exists: ai by default; rules skips chat and returns rules_fa
 Synthetic STT misrecognized intended Hindi input Nayi maang aayi as Marathi. This is a known mismatch. TTS first returned HTTP 400 in 105 ms because the local speaker variable contains another environment assignment; explicit empty speaker override succeeded. Environment file remains unchanged.
 
 AI cases 1 and 4 pass all expected fields; case 10 returns null item without exception. Full text suite and rules comparison ran; six-case synthetic audio eval was not rerun in this diagnostic task. No real-clip transcription success is claimed.
+
+## Beyond kirana
+
+First run only; todayISO=2026-10-31 (Saturday). No catalog hints supplied, so toy-only hints cannot bias cross-vertical matching. Saturday means today and Sunday means tomorrow for these expectations. These are extraction checks, not proof of booking, catalog or cross-store integrations.
+
+Expected fields were fixed before calls. Stylist gender is scored as a soft preference because the current hard-constraint vocabulary cannot encode it; that is a schema gap, not a valid booking constraint policy. Composite services, exact time, branch routing, 256 GB storage, wall mounting and next-week intervals are not fully scored because the contract lacks those fields. Medicine brand recognition is not medical advice.
+
+| Case | Mode | Fields passed | Case pass | ms |
+|---|---|---:|---|---:|
+| xv-salon | rules | 1/4 | FAIL | 1 |
+| xv-salon | ai | 3/4 | FAIL | 991 |
+| xv-facial | rules | 1/2 | FAIL | 1 |
+| xv-facial | ai | 1/2 | FAIL | 711 |
+| xv-salon-chain | rules | 0/2 | FAIL | 0 |
+| xv-salon-chain | ai | 0/2 | FAIL | 725 |
+| xv-electronics-phone | rules | 1/3 | FAIL | 0 |
+| xv-electronics-phone | ai | 1/3 | FAIL | 856 |
+| xv-electronics-tv | rules | 1/3 | FAIL | 0 |
+| xv-electronics-tv | ai | 3/3 | PASS | 1084 |
+| xv-pharmacy | rules | 2/3 | FAIL | 0 |
+| xv-pharmacy | ai | 2/3 | FAIL | 1956 |
+| xv-apparel | rules | 0/2 | FAIL | 0 |
+| xv-apparel | ai | 2/2 | PASS | 822 |
+
+| Field | Rules | AI |
+|---|---:|---:|
+| item_key | 0/7 | 3/7 |
+| max_budget | 3/3 | 3/3 |
+| needed_by | 3/6 | 4/6 |
+| soft_preferences_contains | 0/1 | 1/1 |
+| hard_constraints | 0/2 | 1/2 |
+
+### xv-salon: rules
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | ["haircut","haircut_beard_trim"] | null | FAIL |
+| max_budget | 600 | 600 | PASS |
+| needed_by | "2026-10-31" | null | FAIL |
+| soft_preferences_contains | "female" | [] | FAIL |
+
+### xv-salon: ai
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | ["haircut","haircut_beard_trim"] | "haircut_beard_trim" | PASS |
+| max_budget | 600 | 600 | PASS |
+| needed_by | "2026-10-31" | "2026-11-01" | FAIL |
+| soft_preferences_contains | "female" | ["female_stylist"] | PASS |
+
+### xv-facial: rules
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | "facial" | null | FAIL |
+| needed_by | "2026-11-01" | "2026-11-01" | PASS |
+
+### xv-facial: ai
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | "facial" | null | FAIL |
+| needed_by | "2026-11-01" | "2026-11-01" | PASS |
+
+### xv-salon-chain: rules
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | "hair_spa" | null | FAIL |
+| needed_by | "2026-10-31" | null | FAIL |
+
+### xv-salon-chain: ai
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | "hair_spa" | null | FAIL |
+| needed_by | "2026-10-31" | "2026-11-01" | FAIL |
+
+### xv-electronics-phone: rules
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | ["phone","smartphone","mobile_phone"] | null | FAIL |
+| hard_constraints | ["brand:samsung","color:blue"] | [] | FAIL |
+| needed_by | "2026-11-01" | "2026-11-01" | PASS |
+
+### xv-electronics-phone: ai
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | ["phone","smartphone","mobile_phone"] | "samsung_galaxy" | FAIL |
+| hard_constraints | ["brand:samsung","color:blue"] | ["color:blue"] | FAIL |
+| needed_by | "2026-11-01" | "2026-11-01" | PASS |
+
+### xv-electronics-tv: rules
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | ["tv","television"] | null | FAIL |
+| max_budget | 45000 | 45000 | PASS |
+| needed_by | "2026-11-01" | null | FAIL |
+
+### xv-electronics-tv: ai
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | ["tv","television"] | "tv" | PASS |
+| max_budget | 45000 | 45000 | PASS |
+| needed_by | "2026-11-01" | "2026-11-01" | PASS |
+
+### xv-pharmacy: rules
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | ["dolo","dolo_650","paracetamol"] | null | FAIL |
+| max_budget | null | null | PASS |
+| needed_by | "2026-10-31" | "2026-10-31" | PASS |
+
+### xv-pharmacy: ai
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | ["dolo","dolo_650","paracetamol"] | "dolo_650_tablet" | FAIL |
+| max_budget | null | null | PASS |
+| needed_by | "2026-10-31" | "2026-10-31" | PASS |
+
+### xv-apparel: rules
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | "kurta" | null | FAIL |
+| hard_constraints | ["size:xl","color:maroon"] | [] | FAIL |
+
+### xv-apparel: ai
+
+| Field | Expected | Got | Pass |
+|---|---|---|---|
+| item_key | "kurta" | "kurta" | PASS |
+| hard_constraints | ["size:xl","color:maroon"] | ["size:xl","color:maroon"] | PASS |
+
+### Open rule and schema gaps
+
+- Fixed item vocabulary misses service names, medicine brands, apparel and electronics variants.
+- Saturday, service appointment times and next-week intervals need explicit deadline semantics.
+- Multi-service requests, stylist requirements, alternative branches, storage capacity and installation need future structured fields and catalog confirmation.
+- Rules and AI failures above are retained without extractor edits or reruns. Skipped AI cases are untested, never counted as passes.
+
+First-run totals: rules 0/7 cases; AI 2/7 cases. Most failed field: item_key, rules 7 failures and AI 4 failures (11 combined). AI requests completed without timeouts; one repair call was needed. No extractor files changed.

@@ -151,5 +151,93 @@
         "needed_by"
       ]
     }
+  },
+  {
+    "id": "xv-salon",
+    "input_text": "Saturday shaam ko haircut aur beard trim, female stylist chahiye, 600 ke andar",
+    "language": "hi-IN",
+    "expected": {
+      "item_key": [
+        "haircut",
+        "haircut_beard_trim"
+      ],
+      "max_budget": 600,
+      "needed_by": "2026-10-31",
+      "soft_preferences_contains": "female"
+    }
+  },
+  {
+    "id": "xv-facial",
+    "input_text": "Facial ka slot aaj nahi hai? Kal subah 11 baje tak ho jaaye toh batana",
+    "language": "hi-IN",
+    "expected": {
+      "item_key": "facial",
+      "needed_by": "2026-11-01"
+    }
+  },
+  {
+    "id": "xv-salon-chain",
+    "input_text": "Bandra branch mein Saturday ka slot nahi hai, kisi aur branch mein ho toh batana, hair spa",
+    "language": "hi-IN",
+    "expected": {
+      "item_key": "hair_spa",
+      "needed_by": "2026-10-31"
+    }
+  },
+  {
+    "id": "xv-electronics-phone",
+    "input_text": "Samsung Galaxy ka 256 GB blue chahiye, is store mein nahi hai, kal tak mil jaayega?",
+    "language": "hi-IN",
+    "expected": {
+      "item_key": [
+        "phone",
+        "smartphone",
+        "mobile_phone"
+      ],
+      "hard_constraints": [
+        "brand:samsung",
+        "color:blue"
+      ],
+      "needed_by": "2026-11-01"
+    }
+  },
+  {
+    "id": "xv-electronics-tv",
+    "input_text": "55 inch ka TV 45000 ke andar, wall mount ke saath, Sunday delivery",
+    "language": "hi-IN",
+    "expected": {
+      "item_key": [
+        "tv",
+        "television"
+      ],
+      "max_budget": 45000,
+      "needed_by": "2026-11-01"
+    }
+  },
+  {
+    "id": "xv-pharmacy",
+    "input_text": "Dolo 650 ka strip nahi hai, aaj shaam tak chahiye",
+    "language": "hi-IN",
+    "expected": {
+      "item_key": [
+        "dolo",
+        "dolo_650",
+        "paracetamol"
+      ],
+      "max_budget": null,
+      "needed_by": "2026-10-31"
+    }
+  },
+  {
+    "id": "xv-apparel",
+    "input_text": "Ye kurta XL mein maroon colour mein, agle hafte tak",
+    "language": "hi-IN",
+    "expected": {
+      "item_key": "kurta",
+      "hard_constraints": [
+        "size:xl",
+        "color:maroon"
+      ]
+    }
   }
 ]

@@ -86,7 +86,7 @@ Demo column describes this branch's inspected source, not a verified live deploy
 | Area | Demo today | At scale, proposed |
 |---|---|---|
 | Board updates | Browser polls about every 3 seconds after each completed load | Authenticated push, versioned snapshots, reconnect recovery |
-| AI | App adapter uses rules stub; separate Sarvam library exists, but live extraction evaluation timed out | Queued STT, rules first, selective LLM calls, bounded spend and fallback |
+| AI | App adapter uses rules stub; separate Sarvam library passed 14 live calls after reasoning was disabled; app adapter remains the rules stub | Queued STT, rules first, selective LLM calls, bounded spend and fallback |
 | Database | Supabase Postgres schema with request locking and conditional stock decrement | Postgres shards by merchant_id; tenant-scoped transactions and per-product locks |
 | Board data | Server loads products, requests, and events and computes board on read | Incremental per-shop read model in Redis, rebuilt from Postgres |
 | Merchant auth | Shared merchant key checked by server | Approved Paytm merchant login integration and merchant-scoped authorization |
@@ -128,4 +128,30 @@ QA owns these values. No load or latency claim is inferred from code inspection.
 | What fraction of "Nahi hai" moments become scans? | unknown, measured in pilot | Count eligible moments and completed captures, including abandonment |
 | What is cost per capture? | unknown, measured in pilot | Record billed audio, LLM usage, retries, and fallback share per completed capture |
 | What are Sarvam throughput limits? | unknown, measured in pilot | Confirm account quotas with provider, then measure approved concurrency, latency, and rate-limit responses |
+| How do chains map free text to their SKU catalog? | unknown, measured in pilot | Measure catalog candidate coverage, ambiguity, human confirmation and wrong-match rate |
 | What do notification channels cost? | unknown, measured in pilot | Confirm approved channel pricing and delivery quotas; measure sends, failures, retries, and pickup conversion |
+
+## Merchant tiers
+
+Enrich and Croma are examples of business formats only. This document does not claim either is a Paytm merchant or partner. The demo is one store; none of the multi-store design below is built today.
+
+| Tier | What "nahi hai" means | Capture mode | Recovery action | Who sees demand | Integration |
+|---|---|---|---|---|---|
+| Micro: kirana, specialty shop | Item out of stock | Customer QR and Soundbox | Restock and notify | Owner | None |
+| Mid-size outlet: independent salon, pharmacy, apparel store, 1 to 20 outlets | No slot, size or colour | Staff-assisted counter device plus QR | Waitlist or source by evening | Owner and store manager | Billing app |
+| Service chain: Enrich-style salon chain, many outlets across cities | No slot or stylist free at this outlet; retail product such as shampoo out of stock | Front desk or booking app plus QR | Offer nearest outlet with a free slot, waitlist, fill cancellations | Outlet manager, city and HQ | Booking system and POS |
+| Retail chain: Croma-style electronics chain, hundreds of stores | Model, colour or variant missing at this store | Staff app or POS lost-sale button plus QR | Transfer from another store, home delivery or restock | Store, region and HQ category buyers | SKU catalog, POS, ERP |
+
+## Multi-store design
+
+**Tenancy.** Model org -> store -> counter. Put org_id and store_id on every operational row, with counter_id where relevant, and enforce roles at each level. A shared merchant login must not grant access to unrelated stores or organizations. Reserve cross-store lookup permission separately from stock-changing permission.
+
+**Products and services.** The proposed request model references an offer type: product SKU or service slot. An Enrich-style salon slot and a Croma-style phone variant can use the same request and recovery workflow. Nearest-outlet routing finds a candidate for either, then the owning store confirms availability. Product reservations consume stock; service reservations consume a time interval, staff and resource capacity. Current ExtractedRequest lacks these structured offer and routing fields; this requires a future contract change, not a claim of current support.
+
+**Catalog matching.** Rules and AI map free text to candidates in the organization's catalog. Match SKU variants, service duration and stylist requirements against authoritative identifiers. A human confirms unknown or ambiguous matches before a promise or reservation. Do not map a medicine to a substitute or infer dosage; pharmacy staff confirms the requested product. Catalog coverage and matching cost are unknown, measured in pilot.
+
+**HQ rollup.** Aggregate demand asynchronously by org, region and item through CDC and the warehouse. Give store managers their operational board and HQ category buyers aggregate trends. Never compute chain-wide analytics on the capture or reservation hot path; publish rollup freshness.
+
+**Hot tenants.** A large chain is a hot tenant. Map merchant_id to the organization boundary and distribute its stores across store_id shards inside that organization. Keep each store's inventory or booking transactions local. Cap per-org AI spend and per-store concurrency; cross-store transfers use explicit workflows rather than a transaction across all stores.
+
+**Load and data shape.** Chains change the data shape more than the basic capture pattern: fewer organizations, many stores, catalogs, service slots and deeper analytics. Count stores, not organizations, in the active-shop load model. Chain campaigns and HQ reads can still create correlated bursts; measure those separately. Keep the 5 to 20 moments and 10% scan rate as assumptions until each tier is sampled. Include all four tiers in the 50-shop pilot.

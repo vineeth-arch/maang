@@ -113,7 +113,7 @@ async function main() {
     }
   } else {
     mkdirSync(resolve(root, 'audio/real'), { recursive: true });
-    for (const c of cases.filter(c => [1,2,4,5,7,12].includes(c.id))) {
+    for (const c of cases.filter(c => [1,2,4,5,7,12].includes(Number(c.id)))) {
       const file = resolve(root, `audio/case-${c.id}.wav`);
       const latencies: Record<string,number> = {};
       if (!existsSync(file)) {
