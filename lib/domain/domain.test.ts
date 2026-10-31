@@ -144,7 +144,7 @@ test('format helpers', () => {
 test('alignToCatalog snaps spoken constraints to catalogue tags, same item only', async () => {
   const { alignToCatalog } = await import('./align');
   const tvs = [{ item_key: 'tv', tags: ['size:55_inch', 'wall_mount'] }, { item_key: 'tv', tags: ['size:55_inch'] }];
-  for (const hc of [['size:55 inch'], ['size:55 inches'], []]) {
+  for (const hc of [['size:55 inch'], ['size:55 inches'], ['size:55'], ['size:55"', 'wall_mount'], []]) {
     const tv = alignToCatalog({ item_key: 'tv', hard_constraints: hc, source_text: '55 inch ka TV, wall mount ke saath' }, tvs);
     assert.deepEqual(tv.hard_constraints, ['size:55_inch', 'wall_mount'], JSON.stringify(hc));
   }

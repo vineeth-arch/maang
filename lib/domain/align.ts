@@ -6,10 +6,11 @@ const value = (t: string) => flat(t.includes(':') ? t.slice(t.indexOf(':') + 1) 
 const digits = (v: string) => v.replace(/[^0-9]/g, '');
 const letters = (v: string) => v.replace(/[0-9]/g, '');
 
-// Same number and one unit word is a prefix of the other: 55inch ~ 55inches, 256gb ~ 256gb, blue ~ blue.
+// Same number and one unit word is a prefix of the other (55inch ~ 55inches), or one side has no unit (55 ~ 55inch).
 function same(a: string, b: string): boolean {
   if (digits(a) !== digits(b)) return false;
   const la = letters(a), lb = letters(b);
+  if (digits(a) !== '' && (la === '' || lb === '')) return true;
   return la === lb || (la.length >= 2 && lb.length >= 2 && (la.startsWith(lb) || lb.startsWith(la)));
 }
 
