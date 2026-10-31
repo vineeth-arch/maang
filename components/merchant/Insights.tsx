@@ -154,7 +154,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
       {has('location_filter') && stores.length > 0 && (
         <div className="mt-8">
           <label className="label-mono block text-board-fg/80" htmlFor="loc">Location</label>
-          <select id="loc" value={store} onChange={(e) => setStore(e.target.value)} className="mt-1 min-h-12 rounded-md border border-board-fg/40 bg-board-bg px-3 text-board-fg">
+          <select id="loc" value={store} onChange={(e) => setStore(e.target.value)} className="mt-1 min-h-12 max-w-full rounded-md border border-board-fg/40 bg-board-bg px-3 text-board-fg">
             <option value="all">All locations</option>
             {stores.map((s) => <option key={s.store_id} value={s.store_id}>{s.store_label}</option>)}
           </select>

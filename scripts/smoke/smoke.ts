@@ -19,6 +19,7 @@ import type {
   ResetResponse,
   StockResponse,
 } from '../../lib/api-types';
+import { clusterKey } from '../../lib/domain';
 
 const SLUG = 'neighbourhood-toys';
 const CLUSTER = 'rc_car|rechargeable|1000';
@@ -396,6 +397,95 @@ async function main(): Promise<void> {
       assert(r.status === 200, `status ${r.status}`);
       return '200';
     });
+
+    await check('17 insights store 2 location matrix', async () => {
+      const r = await http<{ profile: { tier: string }; modules: string[]; insights: { byStore?: Array<{ store_label: string }>; items: Array<{ item_key: string; by_store?: Array<{ store_label: string }> }> } }>(
+        'GET', `/api/merchant/electronics-andheri/insights?k=${q(MK)}`);
+      assert(r.status === 200, `status ${r.status}`);
+      assert(r.json.profile.tier === 'very_large', `tier ${r.json.profile.tier}`);
+      assert(r.json.modules.includes('matrix'), 'no matrix module');
+      assert((r.json.insights.byStore ?? []).length === 3, `stores ${(r.json.insights.byStore ?? []).length}`);
+      const lap = r.json.insights.items.find((i) => i.item_key === 'laptop');
+      assert(lap?.by_store?.[0]?.store_label === 'Noida', `laptop top ${lap?.by_store?.[0]?.store_label}`);
+      const b = await http<BoardResponse>('GET', `/api/merchant/electronics-andheri/board?k=${q(MK)}`);
+      assert(b.status === 200 && b.json.clusters.length >= 2, `store 2 board ${b.status}`);
+      return `very_large, 3 locations, laptops top in Noida, ${b.json.clusters.length} clusters`;
+    });
+
+    // 18. Store 2 seed, board, rejected TV (deterministic, read-only)
+    const S2 = 'electronics-andheri';
+    await check('18 store 2 seed, board, rejected TV', async () => {
+      const rs = await resetCall();
+      assert(rs.status === 200, `reset status ${rs.status}`);
+      const s2 = (rs.json as { store2?: { products: number; requests: number } | null }).store2;
+      assert(s2, 'reset result has no store2 counts (store 2 not seeded)');
+      assert(s2.products === 6, `store2 products=${s2.products}`);
+      assert(s2.requests === 17, `store2 requests=${s2.requests}`);
+      const r = await http<BoardResponse>('GET', `/api/merchant/${S2}/board?k=${q(MK)}`);
+      assert(r.status === 200, `store 2 board status ${r.status}`);
+      assert(r.json.shop.name === 'Galaxy Digital, Andheri', `shop name=${r.json.shop.name}`);
+      const want: Record<string, number> = {
+        'samsung_galaxy|256_gb,color:blue|any': 6,
+        'tv|size:55_inch,wall_mount|5000+': 4,
+        'earbuds|noise_cancelling|5000': 3,
+        'laptop|16_gb_ram|5000+': 3,
+      };
+      for (const [key, n] of Object.entries(want)) {
+        const c = r.json.clusters.find((x) => x.key === key);
+        assert(c, `cluster ${key} missing`);
+        assert(c.requests.length === n, `${key} requests=${c.requests.length}, expected ${n}`);
+      }
+      const tv = r.json.clusters.find((x) => x.key === 'tv|size:55_inch,wall_mount|5000+');
+      assert(tv, 'TV cluster missing');
+      assert(!tv.eligible.some((p) => p.id === 'GD-TV-02'), 'GD-TV-02 wrongly eligible');
+      const rej = tv.rejected.find((x) => x.product.id === 'GD-TV-02');
+      assert(rej, 'rejected lacks GD-TV-02');
+      assert(rej.reasons.some((x) => x.code === 'missing_constraint:wall_mount'), 'GD-TV-02 lacks missing_constraint:wall_mount');
+      // Closed requests are not exposed on the board response, so the close_reason sub-assert is skipped.
+      assert(!r.json.clusters.some((c) => c.item_key === 'inverter_ac'), 'inverter_ac appears as an open cluster');
+      return 'store2 6 products/17 requests, 4 clusters match, GD-TV-02 rejected (wall_mount)';
+    });
+
+    // 19. Store 2 spoken phrases land in seeded clusters (AI, non-deterministic)
+    {
+      const phrases: Array<{ text: string; item: string; key: string; ignoreBudget?: boolean }> = [
+        { text: 'Samsung Galaxy ka 256 GB blue chahiye, kal tak', item: 'samsung_galaxy', key: 'samsung_galaxy|256_gb,color:blue|any' },
+        { text: '55 inch ka TV 45000 ke andar, wall mount ke saath', item: 'tv', key: 'tv|size:55_inch,wall_mount|5000+' },
+        { text: 'noise cancelling earbuds 3000 ke andar', item: 'earbuds', key: 'earbuds|noise_cancelling|5000' },
+        { text: 'college ke liye laptop 16 GB RAM, Monday tak', item: 'laptop', key: 'laptop|16_gb_ram|', ignoreBudget: true },
+      ];
+      const name = '19 store 2 spoken phrases land in seeded clusters';
+      const results: ExtractResponse[] = [];
+      for (const p of phrases) {
+        const ex = await http<ExtractResponse>('POST', '/api/capture/extract', { body: { shopSlug: S2, text: p.text } });
+        if (ex.status !== 200) {
+          await check(name, async () => {
+            throw new Error(`extract status ${ex.status}`);
+          });
+          results.length = 0;
+          break;
+        }
+        results.push(ex.json);
+      }
+      if (results.length === phrases.length) {
+        if (results.some((x) => x.mode === 'rules_fallback')) {
+          skip(name, 'AI unavailable (rules_fallback); non-deterministic check skipped');
+        } else {
+          await check(name, async () => {
+            const misses: string[] = [];
+            phrases.forEach((p, i) => {
+              const ex = results[i];
+              const ck = clusterKey(ex) ?? 'null';
+              const hit = ex.item_key === p.item && (p.ignoreBudget ? ck.startsWith(p.key) : ck === p.key);
+              console.log(`  item_key=${String(ex.item_key)} cluster=${ck} hit=${hit ? 'yes' : 'no'}`);
+              if (!hit) misses.push(`${p.item}: got item_key=${String(ex.item_key)} cluster=${ck}`);
+            });
+            assert(misses.length === 0, misses.join('; '));
+            return '4/4 phrases hit seeded clusters (laptop compared with budget bucket ignored)';
+          });
+        }
+      }
+    }
 
     // 14. Speak guarded
     await check('14 speak guarded', async () => {
