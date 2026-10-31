@@ -18,6 +18,25 @@
   --counter-notified: #F5C26B;
   --counter-reserved: #7CC4FA;
   --counter-picked: #4CC38A;
+
+  /* Insights design system: bright retail canvas with semantic data color. */
+  --insights-canvas: #FAFAF6;
+  --insights-surface: #FFFFFF;
+  --insights-ink: #18212B;
+  --insights-muted: #637181;
+  --insights-border: #E4E8E3;
+  --insights-teal: #087F73;
+  --insights-teal-soft: #E5F5F1;
+  --insights-saffron: #D78300;
+  --insights-saffron-soft: #FFF2D4;
+  --insights-green: #20865A;
+  --insights-green-soft: #E5F4E9;
+  --insights-amber: #A96500;
+  --insights-amber-soft: #FFF1D9;
+  --insights-coral: #D64D4D;
+  --insights-coral-soft: #FCE9E6;
+  --insights-cobalt: #4878D0;
+  --insights-rose: #CC6690;
 }
 
 @theme inline {
@@ -37,6 +56,25 @@
   --color-counter-notified: var(--counter-notified);
   --color-counter-reserved: var(--counter-reserved);
   --color-counter-picked: var(--counter-picked);
+  --color-insights-canvas: var(--insights-canvas);
+  --color-insights-surface: var(--insights-surface);
+  --color-insights-ink: var(--insights-ink);
+  --color-insights-muted: var(--insights-muted);
+  --color-insights-border: var(--insights-border);
+  --color-insights-teal: var(--insights-teal);
+  --color-insights-teal-soft: var(--insights-teal-soft);
+  --color-insights-saffron: var(--insights-saffron);
+  --color-insights-saffron-soft: var(--insights-saffron-soft);
+  --color-insights-green: var(--insights-green);
+  --color-insights-green-soft: var(--insights-green-soft);
+  --color-insights-amber: var(--insights-amber);
+  --color-insights-amber-soft: var(--insights-amber-soft);
+  --color-insights-coral: var(--insights-coral);
+  --color-insights-coral-soft: var(--insights-coral-soft);
+  --color-insights-cobalt: var(--insights-cobalt);
+  --color-insights-rose: var(--insights-rose);
+  --radius-insights-card: 1rem;
+  --shadow-insights-card: 0 8px 24px -20px rgb(24 33 43 / 35%);
   --font-display: var(--font-bricolage), var(--font-mukta), system-ui, sans-serif;
   --font-sans: var(--font-hanken), var(--font-mukta), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), var(--font-mukta), ui-monospace, monospace;
