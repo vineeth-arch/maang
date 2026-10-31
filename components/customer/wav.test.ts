@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { encodeWav } from './wav';
+import { encodeWav, wavDurationMs } from './wav';
 
 test('encodeWav: 1 s of 48 kHz input becomes a 16 kHz mono PCM16 WAV', () => {
   const input = new Float32Array(48000);
@@ -19,4 +19,19 @@ test('encodeWav: 1 s of 48 kHz input becomes a 16 kHz mono PCM16 WAV', () => {
   assert.equal(dv.getUint32(40, true), 16000 * 2);
   assert.equal(buf.byteLength, 44 + 32000);
   assert.equal(dv.getUint32(4, true), buf.byteLength - 8);
+});
+
+test('wavDurationMs: 8000 samples at 16 kHz is 500 ms', () => {
+  assert.equal(wavDurationMs(new Uint8Array(encodeWav(new Float32Array(8000), 16000))), 500);
+});
+
+test('wavDurationMs: header-only WAV is 0 ms', () => {
+  assert.equal(wavDurationMs(new Uint8Array(encodeWav(new Float32Array(0), 16000)).slice(0, 44)), 0);
+});
+
+test('wavDurationMs: non-WAV bytes give null', () => {
+  const junk = new Uint8Array(200);
+  for (let i = 0; i < junk.length; i++) junk[i] = (i * 37 + 11) & 0xff;
+  assert.equal(wavDurationMs(junk), null);
+  assert.equal(wavDurationMs(new Uint8Array(10)), null);
 });

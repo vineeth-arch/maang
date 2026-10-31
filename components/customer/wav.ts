@@ -42,3 +42,26 @@ export function encodeWav(input: Float32Array, inRate: number): ArrayBuffer {
   for (let i = 0; i < pcm.length; i++) dv.setInt16(44 + i * 2, pcm[i], true);
   return buf;
 }
+
+/** Duration in ms of a PCM WAV, read from its header. Null when the bytes are not a well-formed RIFF/WAVE. */
+export function wavDurationMs(bytes: Uint8Array): number | null {
+  if (bytes.length < 44) return null;
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const tag = (o: number) => String.fromCharCode(bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]);
+  if (tag(0) !== 'RIFF' || tag(8) !== 'WAVE') return null;
+  const channels = dv.getUint16(22, true);
+  const rate = dv.getUint32(24, true);
+  const bits = dv.getUint16(34, true);
+  const bytesPerSec = rate * channels * (bits / 8);
+  if (!(bytesPerSec > 0)) return null;
+  let off = 12;
+  while (off + 8 <= bytes.length) {
+    const size = dv.getUint32(off + 4, true);
+    if (tag(off) === 'data') {
+      const avail = bytes.length - (off + 8);
+      return Math.round((Math.min(size, avail) / bytesPerSec) * 1000);
+    }
+    off += 8 + size + (size & 1);
+  }
+  return null;
+}

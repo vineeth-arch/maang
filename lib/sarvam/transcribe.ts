@@ -12,6 +12,5 @@ export const transcribe: VoiceLane['transcribe'] = async (audio, mime) => {
   const parsed = schema.safeParse(await sarvamFetch('transcribe', '/speech-to-text', { method: 'POST', body: form }, 12000));
   if (!parsed.success) throw new VoiceLaneError('transcribe', 'parse', 'Invalid transcript response');
   const text = parsed.data.transcript.trim();
-  if (!text) throw new VoiceLaneError('transcribe', 'parse', 'empty transcript');
   return { text, language: parsed.data.language_code || 'hi-IN', ms: Math.round(performance.now() - started) };
 };

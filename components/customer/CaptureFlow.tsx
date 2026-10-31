@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ExtractedRequest, RelativeDeadline } from '@/lib/contracts';
-import type { CreateRequestBody, CreateRequestResponse, InputMode, TranscribeResponse } from '@/lib/api-types';
+import type { ApiError, CreateRequestBody, CreateRequestResponse, InputMode, TranscribeResponse } from '@/lib/api-types';
 import { formatDeadline, formatINR, resolveRelative, todayIST } from '@/lib/domain';
 import VoiceRecorder, { type RecorderErrorKind } from '@/components/VoiceRecorder';
+import { voiceErrorLine, type VoiceErrorKind } from '@/components/customer/voice-errors';
 
 type Stage = 'capture' | 'review';
 type Tag = 'rules' | 'ai' | 'basic' | null;
@@ -33,6 +34,9 @@ const chipIdle = `${chipBase} border-line bg-white/50 text-ink`;
 const chipOn = `${chipBase} border-ink bg-ink text-white`;
 
 const storeKey = (slug: string) => `maang.capture.${slug}`;
+
+// Errors whose message sends the customer to the text box get focus there; the rest ask for another try at the mic.
+const FOCUS_TEXT: ReadonlySet<VoiceErrorKind> = new Set(['unsupported', 'in_app', 'denied', 'server', 'failed']);
 
 async function postJson<T>(url: string, body: unknown): Promise<{ ok: boolean; status: number; data: T | null }> {
   const res = await fetch(url, {
@@ -83,7 +87,6 @@ export default function CaptureFlow({
   const [stage, setStage] = useState<Stage>('capture');
   const [text, setText] = useState('');
   const [inputMode, setInputMode] = useState<InputMode>('typed');
-  const [typing, setTyping] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [transcribing, setTranscribing] = useState(false);
 
@@ -139,10 +142,6 @@ export default function CaptureFlow({
     }
   }, [text, inputMode, shopSlug]);
 
-  useEffect(() => {
-    if (typing && stage === 'capture') typedRef.current?.focus();
-  }, [typing, stage]);
-
   // Extraction: rules at once, ai when it returns. Debounced on edits.
   useEffect(() => {
     if (stage !== 'review' || !text.trim()) return;
@@ -189,39 +188,46 @@ export default function CaptureFlow({
     setStage('review');
   }, []);
 
-  const failToTyping = useCallback((msg: string) => {
-    setNotice(msg);
-    setTyping(true);
+  const showVoiceError = useCallback((kind: VoiceErrorKind) => {
+    setNotice(voiceErrorLine(kind));
+    if (FOCUS_TEXT.has(kind)) typedRef.current?.focus();
   }, []);
 
   const onRecordError = useCallback(
     (kind: RecorderErrorKind) => {
-      failToTyping(
-        kind === 'failed' ? 'Awaaz abhi nahi chal rahi. Likh ke batayein.' : 'Mic ki permission nahi mili. Likh ke batayein.',
-      );
+      showVoiceError(kind);
     },
-    [failToTyping],
+    [showVoiceError],
   );
 
   const onRecorded = useCallback(
     async (blob: Blob) => {
       setTranscribing(true);
       setNotice(null);
+      let kind: VoiceErrorKind = 'server';
       try {
         const form = new FormData();
         form.append('audio', blob, 'capture.wav');
         const res = await fetch('/api/capture/transcribe', { method: 'POST', body: form });
-        if (!res.ok) throw new Error(String(res.status));
-        const data = (await res.json()) as TranscribeResponse;
-        if (!data.text || !data.text.trim()) throw new Error('empty');
-        goReview(data.text.trim(), 'voice');
+        if (res.ok) {
+          const data = (await res.json()) as TranscribeResponse;
+          if (data.text && data.text.trim()) {
+            goReview(data.text.trim(), 'voice');
+            return;
+          }
+          kind = 'empty';
+        } else if (res.status === 422) {
+          const err = (await res.json().catch(() => null)) as ApiError | null;
+          kind = err?.code === 'too_short' ? 'too_short' : err?.code === 'empty_transcript' ? 'empty' : 'server';
+        }
       } catch {
-        failToTyping('Awaaz abhi nahi chal rahi. Likh ke batayein.');
+        kind = 'server';
       } finally {
         setTranscribing(false);
       }
+      showVoiceError(kind);
     },
-    [failToTyping, goReview],
+    [showVoiceError, goReview],
   );
 
   // Effective values: AI result underneath, user edits on top (touched fields never overwritten).
@@ -300,7 +306,6 @@ export default function CaptureFlow({
     seqRef.current++;
     setStage('capture');
     setNotice(null);
-    setTyping(false);
     draftRef.current = '';
     try {
       sessionStorage.removeItem(storeKey(shopSlug));
@@ -354,41 +359,29 @@ export default function CaptureFlow({
             </p>
           )}
 
-          <div className="mt-6">
-            {!typing ? (
-              <button
-                type="button"
-                onClick={() => setTyping(true)}
-                className="min-h-12 w-full rounded-md border border-line px-4 text-[16px] text-ink transition-transform active:scale-[0.98]"
-              >
-                Likh ke batayein
-              </button>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <label htmlFor="typed" className="label-mono text-muted">
-                  Kya chahiye
-                </label>
-                <textarea
-                  id="typed"
-                  ref={typedRef}
-                  defaultValue="" // draftRef is always '' when this mounts: startOver is the only way back and clears it
-                  onChange={(e) => (draftRef.current = e.target.value)}
-                  rows={4}
-                  placeholder={example ?? 'Remote wali gaadi, rechargeable, 1000 ke andar, kal tak'}
-                  className={`${fieldBase} resize-none bg-white/60 p-4 leading-relaxed`}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const t = draftRef.current.trim();
-                    if (t) goReview(t, 'typed');
-                  }}
-                  className="min-h-12 rounded-md bg-primary px-6 text-[16px] font-medium text-white transition-transform active:scale-[0.98]"
-                >
-                  Aage
-                </button>
-              </div>
-            )}
+          <div className="mt-6 flex flex-col gap-3">
+            <label htmlFor="typed" className="label-mono text-muted">
+              Ya likh ke batayein
+            </label>
+            <textarea
+              id="typed"
+              ref={typedRef}
+              defaultValue="" // draftRef is always '' when this mounts: startOver is the only way back and clears it
+              onChange={(e) => (draftRef.current = e.target.value)}
+              rows={4}
+              placeholder={example ?? 'Remote wali gaadi, rechargeable, 1000 ke andar, kal tak'}
+              className={`${fieldBase} resize-none bg-white/60 p-4 leading-relaxed`}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const t = draftRef.current.trim();
+                if (t) goReview(t, 'typed');
+              }}
+              className="min-h-12 rounded-md bg-primary px-6 text-[16px] font-medium text-white transition-transform active:scale-[0.98]"
+            >
+              Aage
+            </button>
           </div>
         </section>
       )}

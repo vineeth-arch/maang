@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { encodeWav } from '@/components/customer/wav';
 
 const MAX_MS = 15000;
+const MIN_MS = 500;
 const WATCHDOG_MS = 1000;
 const SILENCE_PEAK = 1e-4;
 
@@ -67,6 +68,11 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
       setRecording(false);
       setElapsed(0);
       if (!deliver) return;
+      // A quick double-tap lands here: nothing is uploaded and the mic is already torn down, so the next tap works.
+      if (duration < MIN_MS) {
+        onError('too_short');
+        return;
+      }
       try {
         const total = chunks.reduce((n, c) => n + c.length, 0);
         if (total === 0 || peak < SILENCE_PEAK) {
