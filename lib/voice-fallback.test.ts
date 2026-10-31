@@ -152,3 +152,11 @@ test('clarifyingQuestion helper', () => {
   assert.equal(clarifyingQuestion(['max_budget'], 'hi-IN'), 'Aapka budget kitna hai?');
   assert.equal(clarifyingQuestion(['needed_by'], 'en-IN'), 'By when do you need it?');
 });
+
+test('CX-02: negated rechargeable is not a hard constraint', () => {
+  const r = extractRules('RC car rechargeable nahi chahiye under 1000 tomorrow', SAT);
+  assert.equal(r.item_key, 'rc_car');
+  assert.ok(!r.hard_constraints.includes('rechargeable'));
+  assert.equal(r.item, 'remote control car');
+  assert.equal(r.max_budget, 1000);
+});

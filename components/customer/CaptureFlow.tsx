@@ -16,6 +16,7 @@ import VoiceRecorder, { type RecorderErrorKind, type RecorderInfo } from '@/comp
 import { voiceErrorLine, type VoiceErrorKind } from '@/components/customer/voice-errors';
 import { browserFamily, isInAppBrowser } from '@/components/customer/inapp';
 import { sendTelemetry } from '@/components/customer/telemetry';
+import { NotWanted } from '@/components/customer/NotWanted';
 
 type Stage = 'capture' | 'review';
 type Tag = 'rules' | 'ai' | 'basic' | null;
@@ -515,6 +516,7 @@ export default function CaptureFlow({
                   ))}
                 </div>
               )}
+              <NotWanted text={text} />
 
               <div className="flex flex-wrap gap-3">
                 <button type="button" className={open === 'budget' ? chipOn : chipIdle} onClick={() => setOpen(open === 'budget' ? null : 'budget')}>

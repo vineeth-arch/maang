@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ExtractedRequest } from '../contracts';
 import { keepRulesFindings } from './extract';
+import { extractRules } from './rules';
 
 const base: ExtractedRequest = {
   item: null, item_key: null, hard_constraints: [], soft_preferences: [], max_budget: 500, quantity: null,
@@ -59,4 +60,27 @@ test('CX-01: AI item is kept when only constraints were lost', () => {
   assert.equal(out.item_key, 'cake');
   assert.equal(out.item, 'cake');
   assert.deepEqual(sorted(out.hard_constraints), ['eggless', 'sugar_free']);
+});
+
+test('CX-02: sarvam rules drop negated rechargeable', () => {
+  const r = extractRules('RC car rechargeable nahi chahiye under 1000 tomorrow', '2026-10-31');
+  assert.ok(!r.hard_constraints.includes('rechargeable'));
+  assert.equal(r.item, 'remote control car');
+});
+
+test('CX-02: sarvam rules treat bina cheeni as sugar_free', () => {
+  assert.deepEqual(extractRules('bina cheeni cake', '2026-10-31').hard_constraints, ['sugar_free']);
+});
+
+test('CX-02: keepRulesFindings removes a constraint the customer negated', () => {
+  const text = 'RC car rechargeable nahi chahiye under 1000 tomorrow';
+  const ai = { ...base, item: 'rc car', item_key: 'rc_car', hard_constraints: ['rechargeable'], source_text: text };
+  const out = keepRulesFindings(ai, { ...rules, item_key: 'rc_car', hard_constraints: [], source_text: text });
+  assert.deepEqual(out.hard_constraints, []);
+});
+
+test('CX-02: keepRulesFindings never re-adds a negated rules constraint', () => {
+  const text = 'cake eggless nahi chahiye';
+  const out = keepRulesFindings({ ...base, item: 'cake', item_key: 'cake', source_text: text }, { ...rules, source_text: text });
+  assert.deepEqual(out.hard_constraints, []);
 });

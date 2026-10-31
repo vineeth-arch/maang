@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { VoiceLaneError, type VoiceLane, type ExtractedRequest } from '../contracts';
 import { sarvamFetch } from './client';
+import { negatedConstraints } from '../negation';
 import { parseBudget, detectUrgent, resolveDeadline, normalizeConstraints, clarifyingQuestion, extractRules } from './rules';
 
 const schema = z.object({
@@ -79,11 +80,14 @@ export const extract: VoiceLane['extract'] = async (text, todayISO, hints) => {
 
 // AI must never erase what the instant rules pass found (eval case 11 lost "eggless cake").
 // Constraints are unioned by membership; the rules item is used only when the AI found no item.
+// What the customer said they do NOT want is removed from the result, wherever it came from.
 export function keepRulesFindings(ai: ExtractedRequest, rules: ExtractedRequest): ExtractedRequest {
   const lostItem = ai.item_key === null && rules.item_key !== null;
-  const missingFromAi = rules.hard_constraints.some((c) => !ai.hard_constraints.includes(c));
-  const hard = [...new Set([...ai.hard_constraints, ...rules.hard_constraints])];
-  if (!lostItem && !missingFromAi && hard.length === ai.hard_constraints.length) return ai;
+  const negated = negatedConstraints(ai.source_text);
+  const hard = [...new Set([...ai.hard_constraints, ...rules.hard_constraints])].filter((c) => !negated.includes(c));
+  const soft = ai.soft_preferences.filter((s) => !hard.includes(s));
+  const sameHard = hard.length === ai.hard_constraints.length && hard.every((c) => ai.hard_constraints.includes(c));
+  if (!lostItem && sameHard && soft.length === ai.soft_preferences.length) return ai;
   const item = lostItem ? rules.item : ai.item;
   const missing = item === null ? ai.missing : ai.missing.filter((m) => m !== 'item');
   return {
@@ -91,7 +95,7 @@ export function keepRulesFindings(ai: ExtractedRequest, rules: ExtractedRequest)
     item,
     item_key: lostItem ? rules.item_key : ai.item_key,
     hard_constraints: hard,
-    soft_preferences: ai.soft_preferences.filter((s) => !hard.includes(s)),
+    soft_preferences: soft,
     missing,
     clarifying_question: clarifyingQuestion(missing, ai.language),
   };

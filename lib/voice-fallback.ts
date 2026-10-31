@@ -1,4 +1,5 @@
 import type { ExtractedRequest, RelativeDeadline } from './contracts';
+import { negatedConstraints } from './negation';
 
 type Lang = 'hi-IN' | 'mr-IN' | 'en-IN';
 
@@ -182,6 +183,7 @@ export function extractRules(
   if (/cell\s+wala|\baa\s+battery|सेल\s+वाला/.test(s)) constraints.add('disposable_batteries');
   const pcs = s.match(/(\d+)\s*(?:pieces?|pcs|टुकड़े|टुकड़ा|टुकडे)/);
   if (pcs) constraints.add(`pieces:${parseInt(pcs[1], 10)}`);
+  for (const c of negatedConstraints(text)) constraints.delete(c);
   const hard = [...constraints].sort();
 
   const budget = extractBudget(s);
