@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #EEEAE0;
+  --ink: #17130F;
+  --muted: #6B665C;
+  --line: #CFCABD;
+  --accent: #FF0A6C;
+  --ok: #1F7A4D;
+  --warn: #B45309;
+  --danger: #B42318;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --font-display: var(--font-bricolage), var(--font-mukta), system-ui, sans-serif;
+  --font-sans: var(--font-hanken), var(--font-mukta), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), var(--font-mukta), ui-monospace, monospace;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-hanken), var(--font-mukta), system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+.font-display {
+  letter-spacing: -0.03em;
+}
+
+.label-mono {
+  font-family: var(--font-jetbrains), var(--font-mukta), ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
