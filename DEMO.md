@@ -26,6 +26,9 @@ Expected output: `{ products: 4, requests: 6, reservations: 0, events: 6 }`. The
 | S1 soundbox screen (MAC-1B) | PASS | flag 0: no button, 0 /speak calls; flag 1: line shows, speak 503 silent, notify 200 unaffected; limiter 503 → 429 within 3 s |
 | S2 polish (MAC-1B) | PASS | AA contrast 17/17 token pairs; /s typed path 10.4 s, 3 taps (scripted); 0 hex literals in merchant UI; 38/38 unit tests |
 | S3 ship (MAC-1B) | PASS | local 16/16, prod 15/15, prod reset → seed |
+| P6 voice merge (MAC-2) | PASS | gate 30/34 (88%); local STT 200, AI extract 2.0 s, cluster 2→3; no-key degrade to basic mode |
+| P7 Soundbox real TTS | PASS | speak 200, 3.58 s clip played on the board |
+| P8 ship (MAC-2) | PASS | prod smoke 15/15 on 2ad1a73; prod STT/extract/speak 200 |
 
 ## Smoke results (MAC-1B)
 - localhost prod build (flag 1): 16/16 PASS, including the bundle scan (no secrets in 38 client files) and check 14 speak guarded (no key 401, keyed 503)
@@ -36,23 +39,39 @@ Covered: create, cluster board, add stock, notify, 5 concurrent reserves → exa
 ## Soundbox screen
 `NEXT_PUBLIC_SOUNDBOX=1` (prod is 1, code default off; inlined at build, so redeploy after changing it). The board shows a one-time "Soundbox voice on" button that unlocks audio. New request → "Nayi maang: {item}, {budget} rupaye tak"; after notify → "{n} customers ko bata diya gaya." The same line is always shown on the board, so it reads on a projector without audio. `POST /api/merchant/[shop]/speak` is merchant-key protected, 1 call per 3 s per shop, builds text on the server (max 120 chars), and returns 503 while voice is stubbed.
 
-## Live vs stubbed vs simulated
-- **Live:** typed capture, rules extraction, request storage, clustering and matching, restock, notify, reserve, cancel, pickup, close, expiry, consent masking, polling status page, merchant board, QR, reset, rate limit.
-- **Stubbed:** voice transcription and voice output. The stub returns 503, and the UI says "Awaaz abhi nahi chal rahi. Likh ke batayein." and opens typed input. Soundbox audio is silent for the same reason; its text line is live.
-- **Fallback:** AI extraction. The stub lane uses the rules extractor, and the UI shows a "basic mode" tag.
+## Demo order
+1. Judge scans the counter QR (/m/neighbourhood-toys/qr) and says a request on /s, e.g. "Remote control car chahiye, rechargeable, 1000 ke andar, kal tak".
+2. Board announces it: Soundbox says "Nayi maang: …" (tap "Soundbox voice on" once first) and the rc_car cluster count goes up.
+3. Stock aa gaya → Save stock.
+4. Customers ko batao → Soundbox says "{n} customers ko bata diya gaya."
+5. Customer reserves on the phone from their status page.
+6. Merchant marks pickup.
+7. Then the urgent "das minute" request: close it honestly with "Nahi ho paayega".
+
+## AI evaluation
+Merge gate (voice branch RESULTS.md at 227bfcb, 14 cases): AI text 30/34 field checks (88%), case 1 and case 4 pass; rules fallback 31/34; AI extract p50 930 ms, max 1100 ms.
+
+Rerun after merge (21 cases incl. cross-vertical, 2026-10-31 13:36 IST): AI text 40/53 (75%), rules fallback 37/53 (70%); AI extract p50 855 ms, max 1467 ms (n=21). Audio AI 0/0: no labelled audio cases.
+
+Prod live checks after deploy 2ad1a73: STT 200 on a TTS WAV in 1.3 s; extract for "Remote control car chahiye, rechargeable, 1000 ke andar, kal tak" → mode ai, rc_car, [rechargeable], 1000, 2026-11-01 in 1.8 s; Soundbox speak 200 (WAV).
+
+## Live vs fallback vs simulated
+- **Live:** Sarvam speech to text (saaras:v3), AI extraction (sarvam-105b, JSON mode), Soundbox voice (bulbul:v3), typed capture, request storage, clustering and matching, restock, notify, reserve, cancel, pickup, close, expiry, consent masking, polling status page, merchant board, QR, reset, rate limits.
+- **Fallback:** if Sarvam fails or times out, extract returns the rules result (mode rules_fallback, UI "basic mode" tag); transcribe returns 503 and the UI opens typed input; Soundbox stays silent but the text line still shows. The rules result also guards the AI result: AI never drops an item or hard constraint that rules found.
 - **Simulated:** all seed data is synthetic and labelled. The "Demand-backed stock advance" tile is marked "Concept (not live)".
 
 ## Known limitations
-- The rate limit (10/min/IP) is in memory and per serverless instance.
+- AI case 9: a colour is treated as a hard constraint (forbidden_hard_prefix 0/1).
+- Real microphone speech is untested until Vineeth's phone check; STT was verified only with TTS round-trip audio.
+- Rate limits are in memory and per serverless instance.
 - Polling runs every 3 s; there are no push notifications. The customer sees updates only on their status page.
-- The microphone was verified with an encoder test and the 503 path. A live phone recording has not been tested on iOS or Android hardware.
 - Shop names on the capture page come from a hardcoded map, with the slug as fallback.
-- `.env.example` was not created because a permission rule blocks `.env*` writes. The variable names are listed in the next section.
 
 ## Env variables (names only)
-SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, MERCHANT_KEY, RESET_KEY, NEXT_PUBLIC_BASE_URL, SARVAM_API_KEY, SARVAM_STT_MODEL, SARVAM_CHAT_MODEL, SARVAM_TTS_MODEL, SARVAM_TTS_SPEAKER, NEXT_PUBLIC_SOUNDBOX. Vercel production has every non-Sarvam variable.
+SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, MERCHANT_KEY, RESET_KEY, NEXT_PUBLIC_BASE_URL, SARVAM_API_KEY, SARVAM_STT_MODEL, SARVAM_CHAT_MODEL, SARVAM_TTS_MODEL, NEXT_PUBLIC_SOUNDBOX, SARVAM_EXTRACT_MODE. Vercel production has all of these except SARVAM_TTS_SPEAKER (deliberately unset).
 
-## Voice lane swap (after the `voice` branch is ready)
-1. `git merge voice` on main. It brings lib/sarvam/ and scripts/eval/ and scripts/qa/.
-2. In `lib/voice.ts`, replace `export { stubLane as voice } from './voice-stub'` with `export { sarvamLane as voice } from './sarvam'`.
-3. Add SARVAM_* variables to Vercel production, run `npm run build && npm test`, deploy, and run the smoke test again.
+## Voice lane
+Merged at 2ad1a73: lib/voice.ts exports sarvamLane. Rollback: set SARVAM_EXTRACT_MODE=rules and redeploy; if speech fails, restore `export { stubLane as voice } from "./voice-stub"` in lib/voice.ts and redeploy.
+
+## Freeze
+Frozen at tag demo-v1. Any later change goes on a hotfix/* branch and merges only if smoke passes again.
