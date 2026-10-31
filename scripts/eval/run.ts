@@ -3,8 +3,9 @@ import { resolve, extname, basename } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { sarvamLane } from '../../lib/sarvam';
 // Rules mode scores the app's own rules engine (the one app/api/capture/extract uses), not lib/sarvam/rules.
-import { extractRules, resolveDeadline } from '../../lib/voice-fallback';
-import { VoiceLaneError, type ExtractedRequest, type RelativeDeadline } from '../../lib/contracts';
+import { extractRules } from '../../lib/voice-fallback';
+import { VoiceLaneError } from '../../lib/contracts';
+import { scoreCase, reportPassRate, THRESHOLDS, type Check } from './score';
 import cases from './cases.json';
 
 // Load only provider settings. Never print environment contents.
@@ -17,8 +18,9 @@ if (existsSync('.env.local')) {
 }
 const root = resolve('scripts/eval');
 const today = '2026-10-31';
+// xv- cases belong to cross-vertical.ts (no catalog hints, own results table).
+const textCases = cases.filter(c => !String(c.id).startsWith('xv-'));
 const hints = { item_keys: ['rc_car', 'gift_hamper', 'jigsaw_puzzle', 'cricket_bat'] };
-type Check = { field: string; expected: unknown; got: unknown; pass: boolean };
 // requested_mode is what the run asked for; actual_mode is what the extractor reported (result.mode), or 'error'.
 // `real` marks unlabelled real-microphone clips, which are requested_mode 'audio' but not synthetic audio.
 type Row = { id: string; requested_mode: 'ai' | 'rules' | 'audio'; actual_mode: 'ai' | 'rules_fallback' | 'error'; real?: boolean; checks: Check[]; error?: string; latencies: Record<string, number> };
@@ -30,19 +32,6 @@ const requested = process.argv[2] || 'text';
 if (!['text', 'audio', 'rules'].includes(requested)) throw new Error('Use text, audio, or rules');
 for (let i = rows.length - 1; i >= 0; i--) if (requested === 'rules' ? rows[i].requested_mode === 'rules' : requested === 'text' ? ['ai', 'rules'].includes(rows[i].requested_mode) : rows[i].requested_mode === 'audio') rows.splice(i, 1);
 const label = (r: Row) => (r.real ? 'audio_real' : r.requested_mode);
-function score(result: ExtractedRequest, expected: Record<string, unknown>): Check[] {
-  return Object.entries(expected).map(([field, value]) => {
-    let got: unknown = result[field as keyof ExtractedRequest];
-    let pass: boolean;
-    if (field === 'deadline_token') { got = result.needed_by; pass = got === resolveDeadline(value as RelativeDeadline, today); }
-    else if (field === 'forbidden_hard_prefix') { got = result.hard_constraints; pass = !result.hard_constraints.some(c => c.startsWith(String(value))); }
-    else if (field === 'soft_preferences') { got = result.soft_preferences; pass = result.soft_preferences.join(' ').toLowerCase().includes(String(value)); }
-    else if (field === 'item_key' && Array.isArray(value)) pass = value.includes(got);
-    else if (Array.isArray(value)) pass = Array.isArray(got) && (value.length === 0 ? got.length === 0 : value.every(v => (got as unknown[]).includes(v)));
-    else pass = got === value;
-    return { field, expected: value, got, pass };
-  });
-}
 function safeError(error: unknown): string {
   return error instanceof VoiceLaneError ? `${error.stage}/${error.kind}: ${error.message}` : 'Local evaluation error';
 }
@@ -91,7 +80,7 @@ async function evaluate(id: string, mode: Row['requested_mode'], text: string, e
   try {
     const result = mode === 'rules' ? extractRules(text, today, hints) : await sarvamLane.extract(text, today, hints);
     latencies.extract = Math.round(performance.now() - started);
-    rows.push({ id, requested_mode: mode, actual_mode: result.mode, ...(real ? { real } : {}), checks: score(result, expected), latencies });
+    rows.push({ id, requested_mode: mode, actual_mode: result.mode, ...(real ? { real } : {}), checks: scoreCase(result, expected, today), latencies });
   } catch (error) {
     latencies.extract = Math.round(performance.now() - started);
     rows.push({ id, requested_mode: mode, actual_mode: 'error', ...(real ? { real } : {}), checks: Object.entries(expected).map(([field, value]) => ({ field, expected: value, got: null, pass: false })), latencies, error: safeError(error) });
@@ -117,17 +106,29 @@ async function audio(id: string, file: string, expected: Record<string, unknown>
     if (fatal(error)) throw error;
   }
 }
+// Fails the run (exit code 1) when a measured pass rate is below its threshold, or a row errored.
+function gate() {
+  const aiRows = (r: Row) => r.actual_mode === 'ai' && (requested === 'audio' ? r.requested_mode === 'audio' && !r.real : r.requested_mode === 'ai');
+  if (requested !== 'rules') {
+    const ai = rows.filter(aiRows);
+    if (!ai.length) console.info('AI not measured');
+    else if (!reportPassRate(requested === 'audio' ? 'AI audio' : 'AI', ai, THRESHOLDS.ai)) process.exitCode = 1;
+  }
+  if (requested !== 'audio' && !reportPassRate('Rules', rows.filter(r => r.requested_mode === 'rules'), THRESHOLDS.rules)) process.exitCode = 1;
+  const errored = rows.filter(r => r.actual_mode === 'error' && (requested === 'audio') === (r.requested_mode === 'audio'));
+  if (errored.length) { console.info(`${errored.length} rows errored`); process.exitCode = 1; }
+}
 async function main() {
   if (requested === 'rules') {
-    for (const c of cases) await evaluate(String(c.id), 'rules', c.input_text, c.expected);
+    for (const c of textCases) await evaluate(String(c.id), 'rules', c.input_text, c.expected);
   } else if (requested === 'text') {
-    for (const c of cases) {
+    for (const c of textCases) {
       await evaluate(String(c.id), 'ai', c.input_text, c.expected);
       await evaluate(String(c.id), 'rules', c.input_text, c.expected);
     }
   } else {
     mkdirSync(resolve(root, 'audio/real'), { recursive: true });
-    for (const c of cases.filter(c => [1,2,4,5,7,12].includes(Number(c.id)))) {
+    for (const c of textCases.filter(c => [1,2,4,5,7,12].includes(Number(c.id)))) {
       const file = resolve(root, `audio/case-${c.id}.wav`);
       const latencies: Record<string,number> = {};
       if (!existsSync(file)) {
@@ -142,6 +143,7 @@ async function main() {
     for (const name of readdirSync(real).filter(n => !n.endsWith('.16k.wav') && /\.(wav|m4a|mp3|aac|aiff?|caf|flac|ogg|mp4)$/i.test(n))) await audio(`real:${basename(name, extname(name))}`, resolve(real, name), {}, {});
   }
   report();
+  gate();
   console.info(`Evaluation ${requested}: ${rows.length} recorded rows; see scripts/eval/RESULTS.md`);
 }
 main().catch(error => { report(); console.error(safeError(error)); process.exitCode = 1; });

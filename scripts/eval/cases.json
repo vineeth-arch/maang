@@ -91,7 +91,7 @@
     "language": "hi-IN",
     "expected": {
       "max_budget": 2000,
-      "soft_preferences": "red",
+      "soft_preferences_contains": "red",
       "forbidden_hard_prefix": "color:"
     }
   },
@@ -194,7 +194,7 @@
         "smartphone",
         "mobile_phone"
       ],
-      "hard_constraints": [
+      "hard_constraints_subset": [
         "brand:samsung",
         "color:blue"
       ],
