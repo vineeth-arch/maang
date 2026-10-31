@@ -17,7 +17,9 @@ export type ErrorCode =
   | 'payload_too_large'
   | 'no_stock'
   | 'not_eligible'
-  | 'server_error';
+  | 'server_error'
+  | 'empty_transcript'
+  | 'too_short';
 
 export type ApiError = { error: string; code: ErrorCode };
 
@@ -178,3 +180,17 @@ export type CloseResponse = { result: string; status: RequestStatus };
 export type ResetCounts = { products: number; requests: number; reservations: number; events: number };
 // counts = store 1 (neighbourhood-toys); store2 = electronics-andheri.
 export type ResetResponse = { ok: true; counts: ResetCounts; store2?: ResetCounts | null };
+
+// ---------- FIX-ALL additions (PREP, additive only) ----------
+// GET /api/health
+export type HealthResponse = { ok: true; time: string; db_role: 'prod' | 'test' | 'unknown' };
+
+// POST /api/capture/telemetry  (no audio, no text, no phone; 204 on success)
+export type TelemetryBody = {
+  stage: 'tap' | 'permission' | 'recording' | 'upload' | 'transcribe';
+  error: string; // error name only, [A-Za-z_]{0,40}
+  browser: 'safari' | 'chrome' | 'firefox' | 'samsung' | 'in_app' | 'other';
+  ctx_state: 'running' | 'suspended' | 'closed' | 'none';
+  chunks: number; // 0..10000
+  duration_ms: number; // 0..20000
+};

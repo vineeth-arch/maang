@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "npx tsx --test lib/*.test.ts lib/sarvam/*.test.ts lib/domain/*.test.ts components/customer/*.test.ts",
+    "test": "npx tsx --test 'lib/**/*.test.ts' 'components/**/*.test.ts' 'scripts/smoke/*.test.ts' 'scripts/eval/score.test.ts'",
     "test:unit": "tsx --test 'lib/**/*.test.ts' 'components/**/*.test.ts'"
   },
   "dependencies": {
