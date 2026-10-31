@@ -86,14 +86,14 @@ Demo column describes this branch's inspected source, not a verified live deploy
 | Area | Demo today | At scale, proposed |
 |---|---|---|
 | Board updates | Browser polls about every 3 seconds after each completed load | Authenticated push, versioned snapshots, reconnect recovery |
-| AI | App adapter uses rules stub; separate Sarvam library passed 14 live calls after reasoning was disabled; app adapter remains the rules stub | Queued STT, rules first, selective LLM calls, bounded spend and fallback |
+| AI | The app uses the Sarvam lane (speech to text, extraction, speech) through lib/voice.ts, with a rules fallback in lib/voice-fallback.ts when Sarvam fails or times out | Queued STT, rules first, selective LLM calls, bounded spend and fallback |
 | Database | Supabase Postgres schema with request locking and conditional stock decrement | Postgres shards by merchant_id; tenant-scoped transactions and per-product locks |
 | Board data | Server loads products, requests, and events and computes board on read | Incremental per-shop read model in Redis, rebuilt from Postgres |
 | Merchant auth | Shared merchant key checked by server | Approved Paytm merchant login integration and merchant-scoped authorization |
 | Rate limits | In-memory sliding window per server instance | Distributed edge and service limits with provider concurrency budgets |
 | Notifications | Consent-gated database transition and event; no external delivery proved | Transactional outbox, delivery workers, consent recheck, idempotency, channel quotas |
 | Hosting | Next.js app source; live hosting and capacity unverified | Edge assets, stateless APIs, independently scaled workers and push gateway; sizing unknown, measured in pilot |
-| Data | Seeded demo shop and synthetic requests; real-data handling not validated | Consented pilot data, encrypted contacts, retention and deletion controls, aggregate analytics |
+| Data | Two seeded demo stores (neighbourhood-toys, small tier; electronics-andheri, a 3-branch electronics chain, very large tier) with synthetic requests; real-data handling not validated | Consented pilot data, encrypted contacts, retention and deletion controls, aggregate analytics |
 
 ## Rollout
 
@@ -133,7 +133,7 @@ QA owns these values. No load or latency claim is inferred from code inspection.
 
 ## Merchant tiers
 
-Enrich and Croma are examples of business formats only. This document does not claim either is a Paytm merchant or partner. The demo is one store; none of the multi-store design below is built today.
+Enrich and Croma are examples of business formats only. This document does not claim either is a Paytm merchant or partner. The demo has two stores (a small toy shop and one branch of a fictional electronics chain), each with its own board; none of the multi-store design below (org, region, HQ rollup, cross-store transfer) is built today.
 
 | Tier | What "nahi hai" means | Capture mode | Recovery action | Who sees demand | Integration |
 |---|---|---|---|---|---|

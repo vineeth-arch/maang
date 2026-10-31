@@ -1,7 +1,8 @@
 [
   {
     "id": "1",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item_key",
@@ -33,18 +34,19 @@
       }
     ],
     "latencies": {
-      "extract": 1078
+      "extract": 921
     }
   },
   {
     "id": "1",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "item_key",
         "expected": "rc_car",
-        "got": "rc_car",
-        "pass": true
+        "got": null,
+        "pass": false
       },
       {
         "field": "hard_constraints",
@@ -70,12 +72,13 @@
       }
     ],
     "latencies": {
-      "extract": 3
+      "extract": 1
     }
   },
   {
     "id": "2",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item_key",
@@ -97,12 +100,13 @@
       }
     ],
     "latencies": {
-      "extract": 930
+      "extract": 626
     }
   },
   {
     "id": "2",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "item_key",
@@ -120,74 +124,6 @@
           "max_budget",
           "needed_by"
         ],
-        "pass": true
-      }
-    ],
-    "latencies": {
-      "extract": 1
-    }
-  },
-  {
-    "id": "3",
-    "mode": "ai",
-    "checks": [
-      {
-        "field": "hard_constraints",
-        "expected": [
-          "rechargeable"
-        ],
-        "got": [
-          "rechargeable"
-        ],
-        "pass": true
-      }
-    ],
-    "latencies": {
-      "extract": 1068
-    }
-  },
-  {
-    "id": "3",
-    "mode": "rules_fallback",
-    "checks": [
-      {
-        "field": "hard_constraints",
-        "expected": [
-          "rechargeable"
-        ],
-        "got": [
-          "rechargeable"
-        ],
-        "pass": true
-      }
-    ],
-    "latencies": {
-      "extract": 1
-    }
-  },
-  {
-    "id": "4",
-    "mode": "ai",
-    "checks": [
-      {
-        "field": "urgent",
-        "expected": true,
-        "got": true,
-        "pass": true
-      }
-    ],
-    "latencies": {
-      "extract": 826
-    }
-  },
-  {
-    "id": "4",
-    "mode": "rules_fallback",
-    "checks": [
-      {
-        "field": "urgent",
-        "expected": true,
-        "got": true,
         "pass": true
       }
     ],
@@ -196,8 +132,81 @@
     }
   },
   {
+    "id": "3",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
+    "checks": [
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "rechargeable"
+        ],
+        "got": [
+          "rechargeable"
+        ],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 645
+    }
+  },
+  {
+    "id": "3",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "rechargeable"
+        ],
+        "got": [
+          "rechargeable"
+        ],
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 0
+    }
+  },
+  {
+    "id": "4",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
+    "checks": [
+      {
+        "field": "urgent",
+        "expected": true,
+        "got": true,
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 1174
+    }
+  },
+  {
+    "id": "4",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "urgent",
+        "expected": true,
+        "got": true,
+        "pass": true
+      }
+    ],
+    "latencies": {
+      "extract": 6
+    }
+  },
+  {
     "id": "5",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item_key",
@@ -219,12 +228,13 @@
       }
     ],
     "latencies": {
-      "extract": 1001
+      "extract": 810
     }
   },
   {
     "id": "5",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "item_key",
@@ -235,8 +245,8 @@
       {
         "field": "max_budget",
         "expected": 500,
-        "got": 500,
-        "pass": true
+        "got": null,
+        "pass": false
       },
       {
         "field": "deadline_token",
@@ -251,7 +261,8 @@
   },
   {
     "id": "6",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item_key",
@@ -277,12 +288,13 @@
       }
     ],
     "latencies": {
-      "extract": 1024
+      "extract": 712
     }
   },
   {
     "id": "6",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "item_key",
@@ -313,7 +325,8 @@
   },
   {
     "id": "7",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item_key",
@@ -329,12 +342,13 @@
       }
     ],
     "latencies": {
-      "extract": 877
+      "extract": 711
     }
   },
   {
     "id": "7",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "item_key",
@@ -355,7 +369,8 @@
   },
   {
     "id": "8",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item_key",
@@ -381,12 +396,13 @@
       }
     ],
     "latencies": {
-      "extract": 1009
+      "extract": 765
     }
   },
   {
     "id": "8",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "item_key",
@@ -399,10 +415,8 @@
         "expected": [
           "size:5"
         ],
-        "got": [
-          "size:5"
-        ],
-        "pass": true
+        "got": [],
+        "pass": false
       },
       {
         "field": "deadline_token",
@@ -417,7 +431,8 @@
   },
   {
     "id": "9",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "max_budget",
@@ -426,27 +441,30 @@
         "pass": true
       },
       {
-        "field": "soft_preferences",
+        "field": "soft_preferences_contains",
         "expected": "red",
-        "got": [],
+        "got": [
+          "size:small"
+        ],
         "pass": false
       },
       {
         "field": "forbidden_hard_prefix",
         "expected": "color:",
         "got": [
-          "color:laal"
+          "color:red"
         ],
         "pass": false
       }
     ],
     "latencies": {
-      "extract": 1100
+      "extract": 1502
     }
   },
   {
     "id": "9",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "max_budget",
@@ -455,7 +473,7 @@
         "pass": true
       },
       {
-        "field": "soft_preferences",
+        "field": "soft_preferences_contains",
         "expected": "red",
         "got": [],
         "pass": false
@@ -468,12 +486,13 @@
       }
     ],
     "latencies": {
-      "extract": 1
+      "extract": 0
     }
   },
   {
     "id": "10",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item",
@@ -489,12 +508,13 @@
       }
     ],
     "latencies": {
-      "extract": 761
+      "extract": 629
     }
   },
   {
     "id": "10",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "item",
@@ -515,30 +535,8 @@
   },
   {
     "id": "11",
-    "mode": "ai",
-    "checks": [
-      {
-        "field": "item_key",
-        "expected": "cake",
-        "got": null,
-        "pass": false
-      },
-      {
-        "field": "hard_constraints",
-        "expected": [
-          "eggless"
-        ],
-        "got": [],
-        "pass": false
-      }
-    ],
-    "latencies": {
-      "extract": 784
-    }
-  },
-  {
-    "id": "11",
-    "mode": "rules_fallback",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item_key",
@@ -558,12 +556,37 @@
       }
     ],
     "latencies": {
+      "extract": 710
+    }
+  },
+  {
+    "id": "11",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
+    "checks": [
+      {
+        "field": "item_key",
+        "expected": "cake",
+        "got": null,
+        "pass": false
+      },
+      {
+        "field": "hard_constraints",
+        "expected": [
+          "eggless"
+        ],
+        "got": [],
+        "pass": false
+      }
+    ],
+    "latencies": {
       "extract": 0
     }
   },
   {
     "id": "12",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item_key",
@@ -595,12 +618,13 @@
       }
     ],
     "latencies": {
-      "extract": 976
+      "extract": 783
     }
   },
   {
     "id": "12",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "item_key",
@@ -637,7 +661,8 @@
   },
   {
     "id": "13",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item_key",
@@ -653,12 +678,13 @@
       }
     ],
     "latencies": {
-      "extract": 625
+      "extract": 813
     }
   },
   {
     "id": "13",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "item_key",
@@ -679,7 +705,8 @@
   },
   {
     "id": "14",
-    "mode": "ai",
+    "requested_mode": "ai",
+    "actual_mode": "ai",
     "checks": [
       {
         "field": "item_key",
@@ -704,12 +731,13 @@
       }
     ],
     "latencies": {
-      "extract": 578
+      "extract": 589
     }
   },
   {
     "id": "14",
-    "mode": "rules_fallback",
+    "requested_mode": "rules",
+    "actual_mode": "rules_fallback",
     "checks": [
       {
         "field": "item_key",
@@ -717,8 +745,8 @@
           "car",
           "rc_car"
         ],
-        "got": "car",
-        "pass": true
+        "got": null,
+        "pass": false
       },
       {
         "field": "missing",
@@ -727,10 +755,11 @@
           "needed_by"
         ],
         "got": [
+          "item",
           "max_budget",
           "needed_by"
         ],
-        "pass": true
+        "pass": false
       }
     ],
     "latencies": {

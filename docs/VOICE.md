@@ -1,12 +1,12 @@
 # Sarvam voice lane
 
-Exports `sarvamLane: VoiceLane` from `lib/sarvam/index.ts`. Main integrates later with:
+Exports `sarvamLane: VoiceLane` from `lib/sarvam/index.ts`. The lane is merged and live: the app reaches it only through `lib/voice.ts`, which contains:
 
 ```ts
 export { sarvamLane as voice } from './sarvam';
 ```
 
-This branch does not change the app adapter. Native fetch uses the subscription-key header. Timeout budgets include body reading: STT 12 seconds, extraction 15 seconds including repair, TTS 8 seconds. TTS has a 50-entry in-memory LRU cache. A cached result returns a copy.
+The app uses the real adapter. When Sarvam fails or times out, extraction falls back to the rules in `lib/voice-fallback.ts`, and transcription returns 503 so the UI opens the typed box. Native fetch uses the subscription-key header. Timeout budgets include body reading: STT 12 seconds, extraction 15 seconds including repair, TTS 8 seconds. TTS has a 50-entry in-memory LRU cache. A cached result returns a copy.
 
 Defaults for empty environment values are saaras:v3, sarvam-105b, and bulbul:v3. Speaker is omitted unless configured. Never print provider keys or HTTP bodies.
 

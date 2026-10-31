@@ -97,6 +97,8 @@ cd "/Users/vineethnair/Vibe Code/maang" && node --env-file=.env.local -e "fetch(
 Expected output: `{ products: 4, requests: 6, reservations: 0, events: 6 }`. The key is read from `.env.local` and never printed.
 
 ## Phase checks
+Historical, not reproduced: every row below was recorded at the commit named in its phase and has not been re-run under the current code. Current numbers are in Measurements.
+
 | Phase | Result | Measured |
 |---|---|---|
 | P0 scaffold + contract + prod hello | PASS | build green, prod HTTP 200, commit 7289c86 |
@@ -113,13 +115,15 @@ Expected output: `{ products: 4, requests: 6, reservations: 0, events: 6 }`. The
 | P8 ship (MAC-2) | PASS | prod smoke 15/15 on 2ad1a73; prod STT/extract/speak 200 |
 
 ## Smoke results (MAC-1B)
+Historical, not reproduced (recorded at MAC-1B, before the smoke gate and CX-09 checks). Current smoke results are in Measurements.
+
 - localhost prod build (flag 1): 16/16 PASS, including the bundle scan (no secrets in 38 client files) and check 14 speak guarded (no key 401, keyed 503)
 - prod (https://maang-alpha.vercel.app): 15/15 PASS. The bundle scan runs locally only.
 
 Covered: create, cluster board, add stock, notify, 5 concurrent reserves → exactly 1 ok and stock never negative, out_of_stock for the loser, double pickup → one event, cancel releases stock, prompt-injection text stays inert, wrong token 404, missing key 401, speak route guarded, and reset restores the seed.
 
 ## Soundbox screen
-`NEXT_PUBLIC_SOUNDBOX=1` (prod is 1, code default off; inlined at build, so redeploy after changing it). The board shows a one-time "Soundbox voice on" button that unlocks audio. New request → "Nayi maang: {item}, {budget} rupaye tak"; after notify → "{n} customers ko bata diya gaya." The same line is always shown on the board, so it reads on a projector without audio. `POST /api/merchant/[shop]/speak` is merchant-key protected, 1 call per 3 s per shop, builds text on the server (max 120 chars), and returns 503 while voice is stubbed.
+`NEXT_PUBLIC_SOUNDBOX=1` (prod is 1, code default off; inlined at build, so redeploy after changing it). The board shows a one-time "Soundbox voice on" button that unlocks audio. New request → "Nayi maang: {item}, {budget} rupaye tak"; after notify → "{n} customers ko bata diya gaya." The same line is always shown on the board, so it reads on a projector without audio. `POST /api/merchant/[shop]/speak` is merchant-key protected, 1 call per 3 s per shop, builds text on the server (max 120 chars), and returns 503 when Sarvam speech fails or is not configured.
 
 ## Demo order
 1. Judge scans the counter QR (/m/neighbourhood-toys/qr) and says a request on /s, e.g. "Remote control car chahiye, rechargeable, 1000 ke andar, kal tak".
@@ -131,11 +135,13 @@ Covered: create, cluster board, add stock, notify, 5 concurrent reserves → exa
 7. Then the urgent "das minute" request: close it honestly with "Nahi ho paayega".
 
 ## AI evaluation
-Merge gate (voice branch RESULTS.md at 227bfcb, 14 cases): AI text 30/34 field checks (88%), case 1 and case 4 pass; rules fallback 31/34; AI extract p50 930 ms, max 1100 ms.
+Current numbers are under Measurements, scored with the strict scorer (exact hard-constraint sets, actual mode recorded). Everything below is historical, not reproduced under that scorer.
 
-Rerun after merge (21 cases incl. cross-vertical, 2026-10-31 13:36 IST): AI text 40/53 (75%), rules fallback 37/53 (70%); AI extract p50 855 ms, max 1467 ms (n=21). Audio AI 0/0: no labelled audio cases.
+Merge gate (voice branch RESULTS.md at 227bfcb, 14 cases): AI text 30/34 field checks (88%), case 1 and case 4 pass; rules fallback 31/34; AI extract p50 930 ms, max 1100 ms. Historical, not reproduced.
 
-Prod live checks after deploy 2ad1a73: STT 200 on a TTS WAV in 1.3 s; extract for "Remote control car chahiye, rechargeable, 1000 ke andar, kal tak" → mode ai, rc_car, [rechargeable], 1000, 2026-11-01 in 1.8 s; Soundbox speak 200 (WAV).
+An earlier rerun after merge (21 cases incl. cross-vertical, 2026-10-31 13:36 IST) quoted AI text 40/53 (75%) and rules fallback 37/53 (70%). That used the old lenient scorer. Historical, not reproduced under the new scorer; do not quote it.
+
+Prod live checks after deploy 2ad1a73 (STT 200 on a TTS WAV in 1.3 s; extract for "Remote control car chahiye, rechargeable, 1000 ke andar, kal tak" returned mode ai, rc_car, [rechargeable], 1000, 2026-11-01 in 1.8 s; Soundbox speak 200): historical, not reproduced.
 
 ## Live vs fallback vs simulated
 - **Live:** Sarvam speech to text (saaras:v3), AI extraction (sarvam-105b, JSON mode), Soundbox voice (bulbul:v3), typed capture, request storage, clustering and matching, restock, notify, reserve, cancel, pickup, close, expiry, consent masking, polling status page, merchant board, QR, reset, rate limits.
@@ -143,8 +149,10 @@ Prod live checks after deploy 2ad1a73: STT 200 on a TTS WAV in 1.3 s; extract fo
 - **Simulated:** all seed data is synthetic and labelled. The "Demand-backed stock advance" tile is marked "Concept (not live)".
 
 ## Known limitations
-- AI case 9: a colour is treated as a hard constraint (forbidden_hard_prefix 0/1).
-- Real microphone speech is untested until Vineeth's phone check; STT was verified only with TTS round-trip audio.
+- AI case 9: a colour is treated as a hard constraint (forbidden_hard_prefix 0/1). Still failing in the current run (see Measurements).
+- Real phone recordings were run through Sarvam STT (6 of 6 ok, see Measurements) and a fake-mic browser flow reached the review screen, but a real iPhone or Android device has not yet passed the Device acceptance table. That table is the release gate.
+- The Sarvam speech (TTS) step of the speech smoke returned HTTP 400. Open item, not investigated; it needs the Sarvam key, which agents may not read.
+- Rules fallback is below its threshold (50% against 60%) and has no electronics words; see Measurements.
 - Rate limits are in memory and per serverless instance.
 - Polling runs every 3 s; there are no push notifications. The customer sees updates only on their status page.
 - Shop names on the capture page come from a hardcoded map, with the slug as fallback.
@@ -153,7 +161,7 @@ Prod live checks after deploy 2ad1a73: STT 200 on a TTS WAV in 1.3 s; extract fo
 SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, MERCHANT_KEY, RESET_KEY, NEXT_PUBLIC_BASE_URL, SARVAM_API_KEY, SARVAM_STT_MODEL, SARVAM_CHAT_MODEL, SARVAM_TTS_MODEL, NEXT_PUBLIC_SOUNDBOX, SARVAM_EXTRACT_MODE. Vercel production has all of these except SARVAM_TTS_SPEAKER (deliberately unset).
 
 ## Voice lane
-Merged at 2ad1a73: lib/voice.ts exports sarvamLane. Rollback: set SARVAM_EXTRACT_MODE=rules and redeploy; if speech fails, restore `export { stubLane as voice } from "./voice-stub"` in lib/voice.ts and redeploy.
+Merged at 2ad1a73 and live: lib/voice.ts exports sarvamLane (`export { sarvamLane as voice } from './sarvam'`); the app uses the real adapter. Rollback: set SARVAM_EXTRACT_MODE=rules and redeploy; if speech fails, point lib/voice.ts at the offline lane in lib/voice-stub.ts (`export { stubLane as voice } from "./voice-stub"`) and redeploy. That lane has no network, so transcribe and speak return 503 and the typed box is used.
 
 ## Device acceptance (release gate)
 
@@ -173,10 +181,53 @@ Fill Device / OS, Result (pass or fail with a note), Telemetry and Date by hand 
 
 Telemetry: the capture page sends `POST /api/capture/telemetry` on voice events. In Vercel, open the project's function logs and filter for lines starting `[telemetry]`. They carry no audio, no transcript text and no phone number. Mark "Telemetry line seen" Y only if a `[telemetry]` line for that attempt appears.
 
+## Smoke tests
+`scripts/smoke/smoke.ts` is read-only by default and safe to run against production:
+
+```sh
+npx tsx --env-file=.env.local scripts/smoke/smoke.ts https://maang-alpha.vercel.app
+```
+
+`--destructive` creates, reserves, cancels and resets data. It runs only when `/api/health` reports `db_role=test`, which needs `MAANG_DB_ROLE=test` on the server and the `supabase/test-marker.sql` row in the database. Otherwise it prints "Destructive suite needs db_role=test (got prod)" and exits 2 before any write. `--destructive --demo-db` also allows the production demo database, after a 5 second warning; use it only when you accept a reset of demo data.
+
+```sh
+set -a; . ./.env.test; set +a; npx tsx scripts/smoke/smoke.ts http://localhost:3102 --destructive
+```
+
+Test database setup (local Supabase, no cloud project):
+1. Install the Supabase CLI and Docker, then start a local stack (ports 563xx).
+2. Apply `supabase/migrations/0001_init.sql`, `supabase/seed.sql` and `supabase/test-marker.sql` to it, in that order. The marker file adds the marker row and service_role grants.
+3. Put the local URL, local service role key and `MAANG_DB_ROLE=test` in a git-ignored `.env.test` (variable names as in Env variables). Never print it.
+4. Start the app with that env on port 3102 and run the command above.
+
+A second hosted Supabase project was not used: a new project in the available org costs $10 a month (about ₹840 a month).
+
+## Rotating MERCHANT_KEY
+1. Generate a new key: `openssl rand -hex 24`.
+2. In Vercel, set `MERCHANT_KEY` for Production and Preview, then redeploy.
+3. Update `.env.local` (used by dev and by the smoke script).
+4. Replace every printed or shared `/m/` link, including the Insights and settings links.
+5. Open tabs clear their stored key on the first 401 and show "This key is wrong or has changed." Reopen the new link in them.
+6. Decks and judges use `/demo`, never a keyed link.
+7. The server trims whitespace from the key, so a trailing space or newline in the Vercel value is harmless.
+
+## Measurements
+All numbers below were measured on 2026-10-31 by the orchestrator, code on branch fix/post-audit (not yet on main). Anything elsewhere in this file without a stamp is historical, not reproduced.
+
+- Unit tests: 188/188 pass via `npm test` (2026-10-31, commit 811ba09, npm test). `tsc` clean; ESLint on app, components, lib, scripts clean (2026-10-31, commit 811ba09, `npx tsc --noEmit`, `npx eslint`).
+- Smoke, read-only plus destructive on the local test database: 31/31 passed, including checks 20 to 24 (opt-out not notified, pickup creates one event, close reason stored, repeated cancel is a no-op, mixed concurrent actions keep stock equal to units added minus units held) (2026-10-31, commit 811ba09, scripts/smoke/smoke.ts).
+- Destructive gate: `--destructive` against a server with `MAANG_DB_ROLE=prod` on the test database printed "Destructive suite needs db_role=test (got prod)", exited 2, and the server log shows zero POST requests (2026-10-31, commit 811ba09, scripts/smoke/smoke.ts).
+- Eval, strict scorer (exact hard-constraint sets, actual mode recorded, rules mode scores lib/voice-fallback.ts which the app runs): text cases, AI 13/14 (92.9%, threshold 70%), AI rows that fell back to rules 0; rules 7/14 (50%, below the 60% threshold, exit 1). Cross-vertical (7 xv- cases): AI 2/7, rules 0/7 (exit 1). AI extract latency over 14 text cases: p50 712 ms, max 1502 ms (2026-10-31, eval code at commit 811ba09, scripts/eval/RESULTS.md, scripts/eval/measurements.json, scripts/eval/cross-vertical-results.json).
+- Real phone clips: 6 user recordings (.m4a) through Sarvam STT via scripts/eval/speech-smoke.ts: 6/6 ok, 155 to 1058 ms. Only clip ids, status and latency are logged; transcripts go to the git-ignored scripts/eval/private/. The TTS step of the same run returned HTTP 400, open item (2026-10-31, commit 811ba09, scripts/eval/speech-smoke.ts).
+- Browser checks (Playwright scratch scripts, not in the repo): Chromium with a fake mic fed one of the clips reached the review screen (upload 200, transcript and AI extraction). Typed "RC car rechargeable nahi chahiye under 1000 tomorrow" shows "Not wanted: rechargeable" and no rechargeable chip. WebKit at 390x844 and 360x780: each voice error state (unsupported, in-app, denied, no audio, too short with zero uploads, empty transcript 422, server 503) shows its own Hinglish line with the typed box visible and no horizontal scroll; in-app shows the "Safari ya Chrome" banner and copy button; telemetry POSTs fire. Merchant key: 14/14 in Chromium and WebKit (header only, never in the URL; bare link works in the same tab; a wrong key stops polling and clears the stored key; /demo sends no key) (2026-10-31, commit 811ba09, Playwright scratch scripts, not reproducible from the repo). A real iPhone or Android device is still the release gate.
+- Not backed by an artifact in the repo, so historical, not reproduced: the 30/34 merge gate, 40/53 and 37/53 lenient-scorer figures, the Phase checks and MAC-1B smoke tables, the DEMO-MODE verification list, and the prod checks after 2ad1a73.
+
 ## Freeze
 Frozen at tag demo-v1. Any later change goes on a hotfix/* branch and merges only if smoke passes again.
 
 ## DEMO-MODE verification — 2026-10-31
+Historical, not reproduced: recorded at tag demo-v6b (commit 5e0c11b), before the fixes in this release. The current unit test count is in Measurements.
+
 
 - 70 unit tests passed, including allowlist, recursive secret/contact redaction, unchanged real auth and limiter tests.
 - `next typegen`, `tsc --noEmit`, ESLint on app/components/lib, and production build passed.

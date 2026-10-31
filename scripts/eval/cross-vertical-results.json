@@ -2,6 +2,7 @@
   {
     "id": "xv-salon",
     "mode": "rules",
+    "actual_mode": "rules_fallback",
     "ms": 1,
     "error": "",
     "checks": [
@@ -37,7 +38,8 @@
   {
     "id": "xv-salon",
     "mode": "ai",
-    "ms": 991,
+    "actual_mode": "ai",
+    "ms": 890,
     "error": "",
     "checks": [
       {
@@ -65,16 +67,18 @@
         "field": "soft_preferences_contains",
         "expected": "female",
         "got": [
-          "female_stylist"
+          "haircut",
+          "beard trim"
         ],
-        "pass": true
+        "pass": false
       }
     ]
   },
   {
     "id": "xv-facial",
     "mode": "rules",
-    "ms": 1,
+    "actual_mode": "rules_fallback",
+    "ms": 0,
     "error": "",
     "checks": [
       {
@@ -94,7 +98,8 @@
   {
     "id": "xv-facial",
     "mode": "ai",
-    "ms": 711,
+    "actual_mode": "ai",
+    "ms": 747,
     "error": "",
     "checks": [
       {
@@ -114,6 +119,7 @@
   {
     "id": "xv-salon-chain",
     "mode": "rules",
+    "actual_mode": "rules_fallback",
     "ms": 0,
     "error": "",
     "checks": [
@@ -134,7 +140,8 @@
   {
     "id": "xv-salon-chain",
     "mode": "ai",
-    "ms": 725,
+    "actual_mode": "ai",
+    "ms": 1241,
     "error": "",
     "checks": [
       {
@@ -146,7 +153,7 @@
       {
         "field": "needed_by",
         "expected": "2026-10-31",
-        "got": "2026-11-01",
+        "got": null,
         "pass": false
       }
     ]
@@ -154,6 +161,7 @@
   {
     "id": "xv-electronics-phone",
     "mode": "rules",
+    "actual_mode": "rules_fallback",
     "ms": 0,
     "error": "",
     "checks": [
@@ -168,7 +176,7 @@
         "pass": false
       },
       {
-        "field": "hard_constraints",
+        "field": "hard_constraints_subset",
         "expected": [
           "brand:samsung",
           "color:blue"
@@ -187,7 +195,8 @@
   {
     "id": "xv-electronics-phone",
     "mode": "ai",
-    "ms": 856,
+    "actual_mode": "ai",
+    "ms": 866,
     "error": "",
     "checks": [
       {
@@ -197,17 +206,18 @@
           "smartphone",
           "mobile_phone"
         ],
-        "got": "samsung_galaxy",
+        "got": "samsung_galaxy_phone",
         "pass": false
       },
       {
-        "field": "hard_constraints",
+        "field": "hard_constraints_subset",
         "expected": [
           "brand:samsung",
           "color:blue"
         ],
         "got": [
-          "color:blue"
+          "color:blue",
+          "size:256 gb"
         ],
         "pass": false
       },
@@ -222,6 +232,7 @@
   {
     "id": "xv-electronics-tv",
     "mode": "rules",
+    "actual_mode": "rules_fallback",
     "ms": 0,
     "error": "",
     "checks": [
@@ -251,7 +262,8 @@
   {
     "id": "xv-electronics-tv",
     "mode": "ai",
-    "ms": 1084,
+    "actual_mode": "ai",
+    "ms": 829,
     "error": "",
     "checks": [
       {
@@ -280,6 +292,7 @@
   {
     "id": "xv-pharmacy",
     "mode": "rules",
+    "actual_mode": "rules_fallback",
     "ms": 0,
     "error": "",
     "checks": [
@@ -310,7 +323,8 @@
   {
     "id": "xv-pharmacy",
     "mode": "ai",
-    "ms": 1956,
+    "actual_mode": "ai",
+    "ms": 613,
     "error": "",
     "checks": [
       {
@@ -320,7 +334,7 @@
           "dolo_650",
           "paracetamol"
         ],
-        "got": "dolo_650_tablet",
+        "got": null,
         "pass": false
       },
       {
@@ -340,6 +354,7 @@
   {
     "id": "xv-apparel",
     "mode": "rules",
+    "actual_mode": "rules_fallback",
     "ms": 0,
     "error": "",
     "checks": [
@@ -363,7 +378,8 @@
   {
     "id": "xv-apparel",
     "mode": "ai",
-    "ms": 822,
+    "actual_mode": "ai",
+    "ms": 732,
     "error": "",
     "checks": [
       {
@@ -379,8 +395,8 @@
           "color:maroon"
         ],
         "got": [
-          "size:xl",
-          "color:maroon"
+          "color:maroon",
+          "size:xl"
         ],
         "pass": true
       }
