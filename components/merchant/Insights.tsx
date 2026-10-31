@@ -2,9 +2,10 @@
 
 import { merchantHref, merchantRead } from '@/lib/demo';
 import { KeyError } from './KeyError';
+import { forgetMerchantKey, loadMerchantKey } from './key';
 
 import { useEffect, useMemo, useState } from 'react';
-import { api } from './api';
+import { api, ApiFail } from './api';
 import { formatINR } from '@/lib/domain/format';
 import { TIER_INFO, type ItemInsight } from '@/lib/insights-entry';
 import type { InsightsResponse } from '@/lib/server/insights';
@@ -70,17 +71,37 @@ function csv(items: ItemInsight[]): string {
   return [head.join(','), ...rows].join('\n');
 }
 
-export function Insights({ shop, k, demo = false }: { shop: string; k: string; demo?: boolean }) {
+export function Insights({ shop, k: urlKey, demo = false }: { shop: string; k: string; demo?: boolean }) {
+  // Real merchants: resolve the key once from the link or this tab's session. Demo never touches a key or storage.
+  const [stored, setStored] = useState<string | null>(null);
+  useEffect(() => {
+    // Storage is browser-only, so it can only be read after mount (reading during render would break hydration).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!demo) setStored(loadMerchantKey(shop, urlKey));
+  }, [demo, shop, urlKey]);
+  const k = demo ? '' : (stored ?? '');
+  const ready = demo || k !== '';
+  const [unauth, setUnauth] = useState(false);
+  const onUnauthorized = () => {
+    if (!demo) forgetMerchantKey(shop);
+    setUnauth(true);
+  };
   const [data, setData] = useState<InsightsResponse | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [store, setStore] = useState('all');
   const [say, setSay] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!ready) return;
     api<InsightsResponse>(merchantRead(shop, 'insights', demo), k)
       .then(setData)
-      .catch((e: unknown) => setErr(e instanceof Error ? e.message : 'error'));
-  }, [shop, k, demo]);
+      .catch((e: unknown) => {
+        if (e instanceof ApiFail && e.status === 401) {
+          if (!demo) forgetMerchantKey(shop);
+          setUnauth(true);
+        } else setErr(e instanceof Error ? e.message : 'error');
+      });
+  }, [shop, k, demo, ready]);
 
   const ins = data?.insights;
   const items = useMemo(() => {
@@ -89,7 +110,9 @@ export function Insights({ shop, k, demo = false }: { shop: string; k: string; d
     return ins.items.filter((i) => i.by_store?.some((s) => s.store_id === store));
   }, [ins, store]);
 
-  if (!demo && (!k.trim() || err === 'unauthorized')) return <KeyError missing={!k.trim()} />;
+  if (!demo && stored === null) return <main className="min-h-screen bg-insights-canvas p-6 text-insights-ink"><p className="label-mono text-insights-muted">Loading…</p></main>;
+  if (!demo && k === '') return <KeyError missing />;
+  if (unauth) return <KeyError missing={false} />;
   if (err) return <main className="min-h-screen bg-insights-canvas p-6 text-insights-ink"><p className="text-xl">Could not load insights ({err}).</p></main>;
   if (!data || !ins) return <main className="min-h-screen bg-insights-canvas p-6 text-insights-ink"><p className="label-mono text-insights-muted">Loading…</p></main>;
 
@@ -101,7 +124,6 @@ export function Insights({ shop, k, demo = false }: { shop: string; k: string; d
     matrix: ['location_matrix'],
   };
   const has = (m: string) => data.modules.includes(m) || (moduleAliases[m] ?? []).some((alias) => data.modules.includes(alias));
-  const q = `?k=${encodeURIComponent(k)}`;
   const stores = ins.byStore ?? [];
   const atStore = (i: ItemInsight) => (store === 'all' ? i.requests_30d : i.by_store?.find((s) => s.store_id === store)?.requests_30d ?? 0);
 
@@ -111,11 +133,15 @@ export function Insights({ shop, k, demo = false }: { shop: string; k: string; d
     // Create the audio element during the click so Safari/iOS keep user-gesture permission.
     const a = new Audio();
     try {
-      const r = await fetch(`/api/merchant/${encodeURIComponent(shop)}/speak${q}`, {
+      const r = await fetch(`/api/merchant/${encodeURIComponent(shop)}/speak`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-merchant-key': k },
         body: JSON.stringify({ kind: 'insight' }),
       });
+      if (r.status === 401) {
+        onUnauthorized();
+        return;
+      }
       if (!r.ok) throw new Error(String(r.status));
       const url = URL.createObjectURL(await r.blob());
       a.src = url;

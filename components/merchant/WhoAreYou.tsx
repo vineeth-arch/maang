@@ -2,6 +2,7 @@
 
 import { merchantHref, merchantRead } from '@/lib/demo';
 import { KeyError } from './KeyError';
+import { forgetMerchantKey, loadMerchantKey } from './key';
 
 import { useEffect, useState } from 'react';
 import { api, ApiFail } from './api';
@@ -21,7 +22,16 @@ const MODULE_LABEL: Record<string, string> = {
   hourly: 'Requests by hour', csv: 'CSV export', by_location: 'By location', location_filter: 'Location filter', matrix: 'Item by location', top_branch: 'Top branch per item',
 };
 
-export function WhoAreYou({ shop, k, demo = false }: { shop: string; k: string; demo?: boolean }) {
+export function WhoAreYou({ shop, k: urlKey, demo = false }: { shop: string; k: string; demo?: boolean }) {
+  // Real merchants: resolve the key once from the link or this tab's session. Demo never touches a key or storage.
+  const [stored, setStored] = useState<string | null>(null);
+  useEffect(() => {
+    // Storage is browser-only, so it can only be read after mount (reading during render would break hydration).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!demo) setStored(loadMerchantKey(shop, urlKey));
+  }, [demo, shop, urlKey]);
+  const k = demo ? '' : (stored ?? '');
+  const ready = demo || k !== '';
   const [band, setBand] = useState<BandId>('under_40l');
   const [locations, setLocations] = useState(1);
   const [msg, setMsg] = useState<string | null>(null);
@@ -30,14 +40,20 @@ export function WhoAreYou({ shop, k, demo = false }: { shop: string; k: string; 
   const base = `/api/merchant/${encodeURIComponent(shop)}`;
 
   useEffect(() => {
+    if (!ready) return;
     api<InsightsResponse>(merchantRead(shop, 'insights', demo), k)
       .then((d) => {
         setBand(d.profile.annual_revenue_band);
         setLocations(d.profile.locations);
         setLoaded(true);
       })
-      .catch((e) => { setUnauthorized(e instanceof ApiFail && e.status === 401); setMsg('Could not load your current size.'); });
-  }, [shop, k, demo]);
+      .catch((e) => {
+        const unauth = e instanceof ApiFail && e.status === 401;
+        if (unauth && !demo) forgetMerchantKey(shop);
+        setUnauthorized(unauth);
+        setMsg('Could not load your current size.');
+      });
+  }, [shop, k, demo, ready]);
 
   const tier = tierFor(BANDS.find((b) => b.id === band)?.value ?? 0, locations);
   const info = TIER_INFO[tier];
@@ -48,12 +64,18 @@ export function WhoAreYou({ shop, k, demo = false }: { shop: string; k: string; 
     try {
       await api<Profile>(`${base}/profile`, k, { annual_revenue_band: band, locations });
       setMsg('Saved. Insights now show this view.');
-    } catch {
+    } catch (e) {
+      if (e instanceof ApiFail && e.status === 401) {
+        forgetMerchantKey(shop);
+        setUnauthorized(true);
+      }
       setMsg('Could not save. Try again.');
     }
   }
 
-  if (!demo && (!k.trim() || unauthorized)) return <KeyError missing={!k.trim()} />;
+  if (!demo && stored === null) return <main className="min-h-screen bg-board-bg p-6 text-board-fg"><p className="label-mono">Loading…</p></main>;
+  if (!demo && k === '') return <KeyError missing />;
+  if (unauthorized) return <KeyError missing={false} />;
   return (
     <main className="min-h-screen bg-board-bg px-4 py-6 text-board-fg sm:px-8">
       <p className="label-mono text-board-fg/70">SETTINGS</p>

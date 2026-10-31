@@ -22,11 +22,11 @@ export function newToken(): string {
   return randomBytes(24).toString('base64url');
 }
 
-// Merchant auth: ?k= or x-merchant-key header must equal MERCHANT_KEY. Returns a 401 Response, or null when allowed.
+// Merchant auth: ?k= or x-merchant-key header must equal MERCHANT_KEY (both trimmed; a stray newline must not lock the merchant out). Returns a 401 Response, or null when allowed.
 export function requireMerchant(req: Request): Response | null {
   const url = new URL(req.url);
-  const provided = url.searchParams.get('k') ?? req.headers.get('x-merchant-key');
-  const expected = env().MERCHANT_KEY;
+  const provided = url.searchParams.get('k')?.trim() || req.headers.get('x-merchant-key')?.trim();
+  const expected = env().MERCHANT_KEY?.trim();
   if (!safeEqual(provided, expected)) return jsonError(401, 'unauthorized');
   return null;
 }

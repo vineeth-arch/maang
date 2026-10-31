@@ -10,13 +10,17 @@ export class ApiFail extends Error {
   }
 }
 
-// The merchant key is only ever passed through as ?k= and never stored or logged.
+// The merchant key travels in the x-merchant-key header only: never in the URL, never stored here or logged.
+// Demo paths (/api/demo/) are public and never carry a key.
 export async function api<T>(path: string, k: string, body?: unknown): Promise<T> {
-  if (path.startsWith('/api/demo/') && body !== undefined) throw new ApiFail(403, 'demo_read_only');
-  const url = path.startsWith('/api/demo/') ? path : `${path}?k=${encodeURIComponent(k)}`;
-  const res = await fetch(url, {
+  const demo = path.startsWith('/api/demo/');
+  if (demo && body !== undefined) throw new ApiFail(403, 'demo_read_only');
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  if (!demo) headers['x-merchant-key'] = k;
+  const res = await fetch(path, {
     method: body === undefined ? 'GET' : 'POST',
-    headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: 'no-store',
   });

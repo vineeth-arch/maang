@@ -2,6 +2,7 @@
 
 import { merchantHref, merchantRead } from '@/lib/demo';
 import { KeyError } from './KeyError';
+import { forgetMerchantKey, loadMerchantKey } from './key';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BoardRequest, BoardResponse, CloseResponse, SpeakBody } from '@/lib/api-types';
@@ -56,9 +57,18 @@ function Counter({ label, value, tone }: { label: string; value: number; tone: k
   );
 }
 
-export function Board({ shop, k, demo = false }: { shop: string; k: string; demo?: boolean }) {
+export function Board({ shop, k: urlKey, demo = false }: { shop: string; k: string; demo?: boolean }) {
+  // Real merchants: resolve the key once from the link or this tab's session. Demo never touches a key or storage.
+  const [stored, setStored] = useState<string | null>(null);
+  useEffect(() => {
+    // Storage is browser-only, so it can only be read after mount (reading during render would break hydration).
+    if (!demo) setStored(loadMerchantKey(shop, urlKey));
+  }, [demo, shop, urlKey]);
+  const k = demo ? '' : (stored ?? '');
+  const ready = demo || k !== '';
+  const dead = useRef(false);
   const [data, setData] = useState<BoardResponse | null>(null);
-  const [conn, setConn] = useState<Conn>((demo || k) ? 'loading' : 'unauthorized');
+  const [conn, setConn] = useState<Conn>('loading');
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [newIds, setNewIds] = useState<ReadonlySet<string>>(new Set());
@@ -67,7 +77,7 @@ export function Board({ shop, k, demo = false }: { shop: string; k: string; demo
   const [restock, setRestock] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!demo && !k) return;
+    if (!ready) return;
     api<InsightsResponse>(merchantRead(shop, 'insights', demo), k)
       .then((r) => {
         const top = r.insights.items.find((i) => i.recommendation === 'restock_now');
@@ -75,7 +85,7 @@ export function Board({ shop, k, demo = false }: { shop: string; k: string; demo
         setRestock(top ? `Restock now: ${top.item_label}.${ev ? ` ${ev.name} in ${ev.days_away} days.` : ''}` : null);
       })
       .catch(() => setRestock(null)); // ponytail: line is optional, board works without it
-  }, [shop, k, demo]);
+  }, [shop, k, demo, ready]);
   const [showQr, setShowQr] = useState(false);
   const [origin, setOrigin] = useState('');
 
@@ -117,10 +127,10 @@ export function Board({ shop, k, demo = false }: { shop: string; k: string; demo
       if (!unlockedRef.current) return;
       try {
         const res = await fetch(
-          `/api/merchant/${encodeURIComponent(shop)}/speak?k=${encodeURIComponent(k)}`,
+          `/api/merchant/${encodeURIComponent(shop)}/speak`,
           {
             method: 'POST',
-            headers: { 'content-type': 'application/json' },
+            headers: { 'content-type': 'application/json', 'x-merchant-key': k },
             body: JSON.stringify(body),
             cache: 'no-store',
           },
@@ -142,8 +152,14 @@ export function Board({ shop, k, demo = false }: { shop: string; k: string; demo
     [k, shop, demo],
   );
 
+  const onUnauthorized = useCallback(() => {
+    dead.current = true;
+    if (!demo) forgetMerchantKey(shop);
+    setConn('unauthorized');
+  }, [demo, shop]);
+
   const refresh = useCallback(async () => {
-    if (!demo && !k) return;
+    if (!ready || dead.current) return;
     try {
       const d = await api<BoardResponse>(merchantRead(shop, 'board', demo), k);
       setData(d);
@@ -178,19 +194,19 @@ export function Board({ shop, k, demo = false }: { shop: string; k: string; demo
         }
       }
     } catch (e) {
-      if (e instanceof ApiFail && e.status === 401) setConn('unauthorized');
+      if (e instanceof ApiFail && e.status === 401) onUnauthorized();
       else setConn((c) => (c === 'unauthorized' ? c : 'offline'));
     }
-  }, [k, shop, announce, demo]);
+  }, [k, shop, announce, demo, ready, onUnauthorized]);
 
   useEffect(() => {
-    if (!demo && !k) return;
+    if (!ready) return;
     let stopped = false;
     let timer: number | undefined;
     const loop = async () => {
       if (stopped) return;
       if (!document.hidden) await refresh();
-      if (!stopped) timer = window.setTimeout(() => void loop(), 3000);
+      if (!stopped && !dead.current) timer = window.setTimeout(() => void loop(), 3000);
     };
     void loop();
     const onVis = () => {
@@ -204,7 +220,7 @@ export function Board({ shop, k, demo = false }: { shop: string; k: string; demo
       document.removeEventListener('visibilitychange', onVis);
       pending.forEach((t) => window.clearTimeout(t));
     };
-  }, [k, refresh, demo]);
+  }, [refresh, ready]);
 
   const toast = useCallback((msg: string) => {
     setToastMsg(msg);
@@ -226,6 +242,7 @@ export function Board({ shop, k, demo = false }: { shop: string; k: string; demo
         await refresh();
         return res;
       } catch (e) {
+        if (e instanceof ApiFail && e.status === 401) onUnauthorized();
         const code = e instanceof ApiFail ? e.code : 'network_error';
         setErrors((er) => ({ ...er, [key]: code }));
         return null;
@@ -237,10 +254,14 @@ export function Board({ shop, k, demo = false }: { shop: string; k: string; demo
         });
       }
     },
-    [k, shop, refresh, demo],
+    [k, shop, refresh, demo, onUnauthorized],
   );
 
-  if (conn === 'unauthorized') return <KeyError missing={!k.trim()} />;
+  if (!demo && stored === null) {
+    return <main className="min-h-screen bg-board-bg p-8 text-board-fg"><p className="label-mono">Loading…</p></main>;
+  }
+  if (!demo && k === '') return <KeyError missing />;
+  if (conn === 'unauthorized') return <KeyError missing={false} />;
 
   const today = data?.today ?? '';
   const ctx: Ctx = { shop, today, busy, errors, run, toast, demo };
