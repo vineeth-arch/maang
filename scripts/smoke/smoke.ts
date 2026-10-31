@@ -380,6 +380,23 @@ async function main(): Promise<void> {
       return 'unauthorised 401, restored seed';
     });
 
+    // 15. Insights (MAC-4)
+    await check('15 insights store 1', async () => {
+      const r = await http<{ profile: { tier: string }; modules: string[]; insights: { items: Array<{ item_key: string; recommendation: string }>; daily: unknown[] } }>('GET', mpath('insights'));
+      assert(r.status === 200, `status ${r.status}`);
+      const rc = r.json.insights.items.find((i) => i.item_key === 'rc_car');
+      assert(rc?.recommendation === 'restock_now', `rc_car=${rc?.recommendation}`);
+      assert(r.json.insights.daily.length === 30, 'daily != 30');
+      const nokey = await http('GET', `/api/merchant/${SLUG}/insights`);
+      assert(nokey.status === 401, `nokey ${nokey.status}`);
+      return `tier ${r.json.profile.tier}, ${r.json.insights.items.length} items, RC car restock_now`;
+    });
+    await check('16 insights page renders', async () => {
+      const r = await http('GET', `/m/${SLUG}/insights?k=${q(MK)}`);
+      assert(r.status === 200, `status ${r.status}`);
+      return '200';
+    });
+
     // 14. Speak guarded
     await check('14 speak guarded', async () => {
       const r1 = await http('POST', `/api/merchant/${SLUG}/speak`, { body: { kind: 'notified', count: 1 } });

@@ -259,6 +259,12 @@ export function Board({ shop, k }: { shop: string; k: string }) {
           <span className="label-mono rounded-md border border-board-fg/20 px-3 py-2 text-board-fg/70">
             Demo data: synthetic
           </span>
+          <a
+            href={`/m/${encodeURIComponent(shop)}/insights?k=${encodeURIComponent(k)}`}
+            className="label-mono flex min-h-12 items-center rounded-md border border-board-fg/40 px-4 text-board-fg"
+          >
+            Insights
+          </a>
           <button
             type="button"
             aria-expanded={showQr}

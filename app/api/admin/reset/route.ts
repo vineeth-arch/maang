@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { json, requireReset } from '@/lib/http';
 import { safe } from '@/lib/server/route';
+import { seedInsights } from '@/lib/server/insights';
 import type { ResetResponse } from '@/lib/api-types';
 
 export const runtime = 'nodejs';
@@ -13,6 +14,7 @@ export async function POST(req: Request) {
     if (denied) return denied;
     const { data, error } = await db().rpc('reset_demo');
     if (error) throw new Error(`reset_demo: ${error.message}`);
+    await seedInsights();
     const out: ResetResponse = { ok: true, counts: data as ResetResponse['counts'] };
     return json(out);
   });
