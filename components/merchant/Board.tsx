@@ -169,9 +169,9 @@ export function Board({ shop, k }: { shop: string; k: string }) {
   return (
     <main className="min-h-screen bg-[#17130F] px-5 py-6 text-[#EEEAE0] sm:px-8 xl:px-12">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="label-mono text-[#EEEAE0]/70">02 / BOARD</p>
-          <h1 className="font-display mt-1 text-5xl font-bold leading-none sm:text-6xl">
+          <h1 className="font-display mt-1 break-words text-4xl font-bold leading-none sm:text-6xl">
             {data?.shop.name ?? shop}
           </h1>
         </div>
