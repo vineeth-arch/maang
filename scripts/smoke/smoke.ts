@@ -13,6 +13,8 @@ import type {
   BoardRequest,
   BoardResponse,
   CancelResponse,
+  CloseReason,
+  CloseResponse,
   Cluster,
   CreateRequestBody,
   CreateRequestResponse,
@@ -162,7 +164,12 @@ async function createRequest(phone: string | undefined, consent: boolean, text: 
     consent,
     ...(phone ? { phone } : {}),
   };
-  const r = await http<CreateRequestResponse>('POST', '/api/requests', { body });
+  // POST /api/requests is limited to 10 per minute per IP; the destructive suite creates more than that.
+  let r = await http<CreateRequestResponse>('POST', '/api/requests', { body });
+  for (let i = 0; r.status === 429 && i < 6; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 15_000));
+    r = await http<CreateRequestResponse>('POST', '/api/requests', { body });
+  }
   assert(r.status === 201, `create status ${r.status}`);
   assert(typeof r.json?.id === 'string' && typeof r.json?.token === 'string', 'create response missing id/token');
   return { id: r.json.id, token: r.json.token };
@@ -174,6 +181,29 @@ const view = (m: Made) => http<CustomerView>('GET', `/api/requests/${m.id}?t=${q
 const addStock = (id: string, n: number) =>
   http<StockResponse>('POST', mpath('stock'), { body: { product_id: id, add_quantity: n } });
 const pickup = (id: string) => http<PickupResponse>('POST', mpath(`requests/${id}/pickup`));
+const cancel = (m: Made) => http<CancelResponse>('POST', `/api/requests/${m.id}/cancel?t=${q(m.token)}`);
+const closeReq = (id: string, reason: CloseReason) =>
+  http<CloseResponse>('POST', mpath(`requests/${id}/close`), { body: { reason } });
+const notifyCluster = (productId: string) =>
+  http<NotifyResponse>('POST', mpath('clusters/notify'), { body: { cluster_key: CLUSTER, product_id: productId } });
+
+// CX-09 checks each start from the seed (RC-01 stock 0; rc_car cluster = seed request 1 consenting, seed 2 opted out,
+// seed 6 expired) so they do not depend on what earlier checks left behind.
+async function freshSeed(): Promise<void> {
+  const r = await resetCall();
+  assert(r.status === 200, `reset status ${r.status}`);
+}
+// Consenting rc_car request, notified against RC-01 (adds one unit of stock first; notify needs stock > 0).
+async function notifiedRequest(phone: string): Promise<Made> {
+  const m = await createRequest(phone, true, TEXT);
+  const s = await addStock('RC-01', 1);
+  assert(s.status === 200, `add stock status ${s.status}`);
+  const n = await notifyCluster('RC-01');
+  assert(n.status === 200 && n.json.notified_count >= 1, `notify status ${n.status}`);
+  const v = await view(m);
+  assert(v.json.status === 'notified', `request status=${v.json.status}, expected notified`);
+  return m;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Board privacy helpers (check 19)
@@ -523,7 +553,137 @@ async function destructiveSuite(): Promise<void> {
       return '404';
     });
 
-    // CX09_PLACEHOLDER
+    // ---- CX-09: guarantees that were untested. Each check resets to the seed first. ----
+
+    // 20. An opted-out customer is never notified
+    await check('20 opted-out match not notified', async () => {
+      await freshSeed();
+      const O = await createRequest(undefined, false, TEXT);
+      const s = await addStock('RC-01', 1);
+      assert(s.status === 200, `add stock status ${s.status}`);
+      const n = await notifyCluster('RC-01');
+      assert(n.status === 200, `notify status ${n.status}`);
+      assert(n.json.skipped_no_consent >= 1, `skipped_no_consent=${n.json.skipped_no_consent}`);
+      const v = await view(O);
+      assert(v.status === 200, `view status ${v.status}`);
+      assert(v.json.status !== 'notified', `opted-out request status=${v.json.status}`);
+      assert(v.json.product === null, 'opted-out request was shown a product');
+      return `skipped_no_consent=${n.json.skipped_no_consent}, request still ${v.json.status}`;
+    });
+
+    // 21. Pickup writes one picked_up event. metrics.picked_up counts distinct requests, so a duplicate event row for
+    // the same request would not show there; the guard is mark_pickup returning 'already' before its insert.
+    await check('21 pickup creates one event', async () => {
+      await freshSeed();
+      const R = await notifiedRequest('9000000921');
+      const r1 = await reserve(R);
+      assert(r1.json.result === 'ok', `reserve result=${r1.json.result}`);
+      const before = (await board()).metrics.picked_up;
+      const p1 = await pickup(R.id);
+      assert(p1.status === 200 && p1.json.result === 'ok', `first pickup ${p1.status}/${p1.json.result}`);
+      const mid = (await board()).metrics.picked_up;
+      assert(mid === before + 1, `picked_up ${before} -> ${mid}, expected +1`);
+      const p2 = await pickup(R.id);
+      assert(p2.status === 200 && p2.json.result === 'already', `second pickup ${p2.status}/${p2.json.result}`);
+      const after = (await board()).metrics.picked_up;
+      assert(after === mid, `picked_up ${mid} -> ${after} after second pickup, expected unchanged`);
+      const v = await view(R);
+      assert(v.json.status === 'picked_up', `view status=${v.json.status}`);
+      return `picked_up ${before} -> ${mid}, second pickup already, still ${after}`;
+    });
+
+    // 22. An urgent close keeps its reason, visible to the customer
+    await check('22 urgent close reason stored', async () => {
+      await freshSeed();
+      const R = await notifiedRequest('9000000922');
+      const c1 = await closeReq(R.id, 'cannot_meet_deadline');
+      assert(c1.status === 200 && c1.json.result === 'ok', `close ${c1.status}/${c1.json.result}`);
+      assert(c1.json.status === 'closed', `close status field=${c1.json.status}`);
+      const v = await view(R);
+      assert(v.status === 200, `view status ${v.status}`);
+      assert(v.json.status === 'closed', `view status=${v.json.status}`);
+      assert(v.json.close_reason === 'cannot_meet_deadline', `close_reason=${String(v.json.close_reason)}`);
+      const c2 = await closeReq(R.id, 'duplicate');
+      assert(c2.json.result === 'already', `second close result=${c2.json.result}`);
+      const v2 = await view(R);
+      assert(v2.json.close_reason === 'cannot_meet_deadline', `close_reason after second close=${String(v2.json.close_reason)}`);
+      return 'close_reason cannot_meet_deadline, second close already, reason unchanged';
+    });
+
+    // 23. Cancelling twice restocks once
+    await check('23 repeated cancel is a no-op', async () => {
+      await freshSeed();
+      const R = await notifiedRequest('9000000923');
+      const rs = await reserve(R);
+      assert(rs.json.result === 'ok', `reserve result=${rs.json.result}`);
+      assert(stockOf(await board(), 'RC-01') === 0, 'stock after reserve != 0');
+      const c1 = await cancel(R);
+      assert(c1.status === 200 && c1.json.result === 'ok' && c1.json.status === 'closed', `cancel #1 ${c1.status}/${c1.json.result}/${c1.json.status}`);
+      const afterFirst = stockOf(await board(), 'RC-01');
+      assert(afterFirst === 1, `stock after first cancel=${afterFirst}`);
+      const c2 = await cancel(R);
+      assert(c2.status === 200 && c2.json.result === 'already' && c2.json.status === 'closed', `cancel #2 ${c2.status}/${c2.json.result}/${c2.json.status}`);
+      const afterSecond = stockOf(await board(), 'RC-01');
+      assert(afterSecond === afterFirst, `stock ${afterFirst} -> ${afterSecond} after second cancel`);
+      return 'first cancel restocks (1), second is already, stock still 1';
+    });
+
+    // 24. Mixed concurrent actions keep stock consistent.
+    // Invariant (reserve_unit, release_unit, mark_pickup, add_stock):
+    //   stock_available = units_added - units_held
+    //   units_added = seed stock + sum(add_stock qty)
+    //   units_held  = reservations with released_at IS NULL, i.e. requests in status reserved or picked_up
+    // reserve_unit 'ok' takes one unit (guarded by stock > 0, so stock never goes negative); release_unit on a reserved
+    // request gives one back; mark_pickup does not touch stock (the reservation stays held). Each locks the request row.
+    // Here RC-01: seed 0 + 3 added = 3. Before the burst X and P are reserved (held 2, stock 1). The burst is:
+    //   reserve N1, N2, N3 (race for the 1 free unit, plus X's unit if the cancel commits first)
+    //   cancel X (reserved, always 'ok', releases 1), pickup P (reserved, always 'ok', releases nothing)
+    // After: held = P + okCount (X is released), so stock = 3 - 1 - okCount = 2 - okCount, with 1 <= okCount <= 2.
+    await check('24 mixed concurrent actions keep stock consistent', async () => {
+      await freshSeed();
+      const [X, P, N1, N2, N3] = [
+        await createRequest('9000000931', true, TEXT),
+        await createRequest('9000000932', true, TEXT),
+        await createRequest('9000000933', true, TEXT),
+        await createRequest('9000000934', true, TEXT),
+        await createRequest('9000000935', true, TEXT),
+      ];
+      const s = await addStock('RC-01', 3);
+      assert(s.status === 200 && s.json.product.stock_available === 3, `stock after add=${s.json.product?.stock_available}`);
+      const n = await notifyCluster('RC-01');
+      assert(n.status === 200, `notify status ${n.status}`);
+      for (const m of [X, P]) {
+        const r = await reserve(m);
+        assert(r.json.result === 'ok', `setup reserve result=${r.json.result}`);
+      }
+      assert(stockOf(await board(), 'RC-01') === 1, 'stock before burst != 1');
+
+      const [r1, r2, r3, c, pk] = await Promise.all([
+        reserve(N1), reserve(N2), reserve(N3), cancel(X), pickup(P.id),
+      ]);
+      const reserves = [r1, r2, r3];
+      reserves.forEach((r, i) => {
+        assert(r.status === 200, `reserve N${i + 1} status ${r.status}`);
+        assert(r.json.result === 'ok' || r.json.result === 'out_of_stock', `reserve N${i + 1} result=${r.json.result}`);
+      });
+      assert(c.status === 200 && c.json.result === 'ok', `cancel X ${c.status}/${c.json.result}`);
+      assert(pk.status === 200 && pk.json.result === 'ok', `pickup P ${pk.status}/${pk.json.result}`);
+
+      const okCount = reserves.filter((r) => r.json.result === 'ok').length;
+      assert(okCount >= 1 && okCount <= 2, `okCount=${okCount}, expected 1..2`);
+      const stock = stockOf(await board(), 'RC-01');
+      assert(stock >= 0, `stock went negative: ${stock}`);
+      assert(stock === 2 - okCount, `stock=${stock}, expected 2 - ${okCount} = ${2 - okCount}`);
+
+      const wantStatus = async (m: Made, status: string) => {
+        const v = await view(m);
+        assert(v.json.status === status, `status=${v.json.status}, expected ${status}`);
+      };
+      await wantStatus(X, 'closed');
+      await wantStatus(P, 'picked_up');
+      for (const [i, m] of [N1, N2, N3].entries()) await wantStatus(m, reserves[i].json.result === 'ok' ? 'reserved' : 'notified');
+      return `okCount=${okCount}, stock=${stock} (= 2 - okCount), X closed, P picked_up`;
+    });
 
     // 12. Restore. The unauthenticated 401 is checked read-only in 12a.
     await check('12 restore seed with keyed reset', async () => {
