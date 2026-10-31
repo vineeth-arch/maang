@@ -96,20 +96,28 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
   const today = useMemo(() => todayIST(), []);
 
   // Restore saved transcript.
+  // Applied in a microtask so the first render still matches the server HTML.
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(storeKey(shopSlug));
-      if (raw) {
-        const saved = JSON.parse(raw) as { text?: string; mode?: InputMode };
-        if (saved.text && saved.text.trim()) {
-          setText(saved.text);
-          setInputMode(saved.mode === 'voice' ? 'voice' : 'typed');
-          setStage('review');
+    let live = true;
+    queueMicrotask(() => {
+      if (!live) return;
+      try {
+        const raw = sessionStorage.getItem(storeKey(shopSlug));
+        if (raw) {
+          const saved = JSON.parse(raw) as { text?: string; mode?: InputMode };
+          if (saved.text && saved.text.trim()) {
+            setText(saved.text);
+            setInputMode(saved.mode === 'voice' ? 'voice' : 'typed');
+            setStage('review');
+          }
         }
+      } catch {
+        /* storage unavailable */
       }
-    } catch {
-      /* storage unavailable */
-    }
+    });
+    return () => {
+      live = false;
+    };
   }, [shopSlug]);
 
   // Mirror transcript.
@@ -352,7 +360,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
                 <textarea
                   id="typed"
                   ref={typedRef}
-                  defaultValue={draftRef.current}
+                  defaultValue="" // draftRef is always '' when this mounts: startOver is the only way back and clears it
                   onChange={(e) => (draftRef.current = e.target.value)}
                   rows={4}
                   placeholder="Remote wali gaadi, rechargeable, 1000 ke andar, kal tak"
