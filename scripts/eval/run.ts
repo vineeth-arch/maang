@@ -9,9 +9,9 @@ import cases from './cases.json';
 // Load only provider settings. Never print environment contents.
 if (existsSync('.env.local')) {
   const env = readFileSync('.env.local', 'utf8');
-  for (const name of ['SARVAM_API_KEY', 'SARVAM_STT_MODEL', 'SARVAM_CHAT_MODEL', 'SARVAM_TTS_MODEL', 'SARVAM_TTS_SPEAKER']) {
+  for (const name of ['SARVAM_API_KEY', 'SARVAM_STT_MODEL', 'SARVAM_CHAT_MODEL', 'SARVAM_TTS_MODEL', 'SARVAM_TTS_SPEAKER', 'SARVAM_EXTRACT_MODE']) {
     const match = env.match(new RegExp(`^\\s*(?:export\\s+)?${name}\\s*=\\s*(.*)$`, 'm'));
-    if (!process.env[name] && match) process.env[name] = match[1].trim().replace(/^(['"])(.*)\1$/, '$2');
+    if (process.env[name] === undefined && match) process.env[name] = match[1].trim().replace(/^(['"])(.*)\1$/, '$2');
   }
 }
 const root = resolve('scripts/eval');

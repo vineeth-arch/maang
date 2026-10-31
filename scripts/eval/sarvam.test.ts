@@ -43,3 +43,50 @@ test('client timeout covers response body; status and key stay safe', async () =
     if (key === undefined) delete process.env.SARVAM_API_KEY; else process.env.SARVAM_API_KEY = key;
   }
 });
+
+test('rules off switch returns contract basic mode without network or key', async () => {
+  const { sarvamLane } = await import('../../lib/sarvam');
+  const previous = process.env.SARVAM_EXTRACT_MODE;
+  const realFetch = globalThis.fetch;
+  let calls = 0;
+  process.env.SARVAM_EXTRACT_MODE = 'rules';
+  globalThis.fetch = async () => { calls++; throw new Error('No network allowed'); };
+  try {
+    const result = await sarvamLane.extract('RC car hazaar ke andar kal tak', '2026-10-31');
+    assert.equal(result.mode, 'rules_fallback');
+    assert.equal(result.max_budget, 1000);
+    assert.equal(calls, 0);
+  } finally {
+    globalThis.fetch = realFetch;
+    if (previous === undefined) delete process.env.SARVAM_EXTRACT_MODE; else process.env.SARVAM_EXTRACT_MODE = previous;
+  }
+});
+
+test('AI repair and deterministic overrides return complete request', async () => {
+  const { sarvamLane } = await import('../../lib/sarvam');
+  const realFetch = globalThis.fetch;
+  const previousMode = process.env.SARVAM_EXTRACT_MODE;
+  const previousKey = process.env.SARVAM_API_KEY;
+  process.env.SARVAM_EXTRACT_MODE = 'ai'; process.env.SARVAM_API_KEY = 'test-only';
+  let calls = 0;
+  globalThis.fetch = async (_url, init) => {
+    const body = JSON.parse(String(init?.body));
+    assert.equal(body.reasoning_effort, null);
+    assert.equal(body.max_tokens, 800);
+    calls++;
+    const candidate = {item:'remote control car',item_key:'rc_car',hard_constraints:[' Rechargeable ','cute'],soft_preferences:[],max_budget:999,quantity:null,deadline_token:'tomorrow',deadline_spoken:'kal',urgent:false,language:'hi-IN'};
+    return Response.json({choices:[{finish_reason:'stop',message:{content:calls===1?'{}':JSON.stringify(candidate)}}]});
+  };
+  try {
+    const source = 'RC car hazaar ke andar kal tak abhi';
+    const result = await sarvamLane.extract(source,'2026-10-31');
+    assert.equal(calls,2); assert.equal(result.mode,'ai'); assert.equal(result.max_budget,1000);
+    assert.equal(result.needed_by,'2026-11-01'); assert.equal(result.urgent,true);
+    assert.deepEqual(result.hard_constraints,['rechargeable']); assert.deepEqual(result.soft_preferences,['cute']);
+    assert.equal(result.source_text,source); assert.deepEqual(result.missing,[]);
+  } finally {
+    globalThis.fetch=realFetch;
+    if(previousMode===undefined) delete process.env.SARVAM_EXTRACT_MODE; else process.env.SARVAM_EXTRACT_MODE=previousMode;
+    if(previousKey===undefined) delete process.env.SARVAM_API_KEY; else process.env.SARVAM_API_KEY=previousKey;
+  }
+});

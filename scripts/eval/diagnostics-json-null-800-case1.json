@@ -1,0 +1,11 @@
+[
+  {
+    "label": "exact_1",
+    "http_and_seconds": "200 0.996663",
+    "exit": 0,
+    "elapsed_ms": 1011,
+    "finish": "stop",
+    "valid_json": true,
+    "completion_tokens": 69
+  }
+]
