@@ -23,7 +23,7 @@ export default async function PrintableQrPage({ params }: { params: Promise<{ sh
     .join(' ');
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center bg-[#EEEAE0] px-6 py-10 text-center text-[#17130F]">
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center bg-white px-6 py-10 text-center text-[#17130F]">
       <style>{`@page { margin: 12mm; } @media print { body { background: #fff !important; } main { min-height: auto !important; } }`}</style>
       <p className="label-mono text-[#6B665C]">{name}</p>
       <h1 className="font-display mt-3 text-5xl font-bold leading-tight sm:text-7xl">Nahi mila? Scan karke bolo.</h1>

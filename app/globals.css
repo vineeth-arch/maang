@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #EEEAE0;
+  --bg: #FFFFFF;
   --ink: #17130F;
   --muted: #6B665C;
   --line: #CFCABD;
@@ -10,17 +10,17 @@
   --warn: #9A4708;
   --danger: #B42318;
   /* Merchant board (dark, projector) */
-  --board-bg: var(--ink);
-  --board-fg: var(--bg);
+  --board-bg: var(--bg);
+  --board-fg: var(--ink);
   --board-error: #FF8A7A;
   --board-ok: #4CC38A;
-  --counter-captured: #EEEAE0;
+  --counter-captured: #FFFFFF;
   --counter-notified: #F5C26B;
   --counter-reserved: #7CC4FA;
   --counter-picked: #4CC38A;
 
   /* Insights design system: bright retail canvas with semantic data color. */
-  --insights-canvas: #FAFAF6;
+  --insights-canvas: #FFFFFF;
   --insights-surface: #FFFFFF;
   --insights-ink: #18212B;
   --insights-muted: #637181;
