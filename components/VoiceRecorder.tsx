@@ -4,8 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { encodeWav } from '@/components/customer/wav';
 
 const MAX_MS = 15000;
+const WATCHDOG_MS = 1000;
+const SILENCE_PEAK = 1e-4;
 
-export type RecorderErrorKind = 'denied' | 'unsupported' | 'failed';
+export type RecorderErrorKind = 'unsupported' | 'denied' | 'no_audio' | 'too_short' | 'failed';
 
 type Props = {
   onRecorded: (blob: Blob, durationMs: number) => void;
@@ -26,12 +28,16 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
   const chunksRef = useRef<Float32Array[]>([]);
   const startedRef = useRef(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const peakRef = useRef(0);
   const activeRef = useRef(false);
   const startingRef = useRef(false);
 
   const teardown = useCallback(() => {
     if (tickRef.current) clearInterval(tickRef.current);
     tickRef.current = null;
+    if (watchRef.current) clearTimeout(watchRef.current);
+    watchRef.current = null;
     try {
       procRef.current?.disconnect();
       srcRef.current?.disconnect();
@@ -55,6 +61,7 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
       const rate = ctxRef.current?.sampleRate ?? 48000;
       const duration = Math.min(Date.now() - startedRef.current, MAX_MS);
       const chunks = chunksRef.current;
+      const peak = peakRef.current;
       chunksRef.current = [];
       teardown();
       setRecording(false);
@@ -62,8 +69,8 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
       if (!deliver) return;
       try {
         const total = chunks.reduce((n, c) => n + c.length, 0);
-        if (total === 0) {
-          onError('failed');
+        if (total === 0 || peak < SILENCE_PEAK) {
+          onError('no_audio');
           return;
         }
         const all = new Float32Array(total);
@@ -99,8 +106,12 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
     startingRef.current = true;
     // Create inside the tap handler (iOS requires a user gesture).
     let ctx: AudioContext;
+    let resumed: Promise<unknown>;
     try {
       ctx = new Ctor();
+      // Must run synchronously in the tap, before any await: iOS only unlocks audio inside the user gesture.
+      // Old WebKit may return undefined instead of a promise.
+      resumed = Promise.resolve(ctx.resume()).catch(() => undefined);
     } catch {
       startingRef.current = false;
       onError('unsupported');
@@ -112,13 +123,27 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
       });
       streamRef.current = stream;
-      if (ctx.state === 'suspended') await ctx.resume();
+      await resumed;
+      if (ctx.state !== 'running') {
+        teardown();
+        onError('no_audio');
+        return;
+      }
       const src = ctx.createMediaStreamSource(stream);
       const proc = ctx.createScriptProcessor(4096, 1, 1);
       chunksRef.current = [];
+      peakRef.current = 0;
+      // ponytail: ScriptProcessor is deprecated but iOS supports it; move to AudioWorklet later.
       proc.onaudioprocess = (e) => {
         if (!activeRef.current) return;
-        chunksRef.current.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+        const data = new Float32Array(e.inputBuffer.getChannelData(0));
+        let peak = peakRef.current;
+        for (let i = 0; i < data.length; i++) {
+          const a = Math.abs(data[i]);
+          if (a > peak) peak = a;
+        }
+        peakRef.current = peak;
+        chunksRef.current.push(data);
       };
       src.connect(proc);
       proc.connect(ctx.destination);
@@ -128,6 +153,13 @@ export default function VoiceRecorder({ onRecorded, onError, disabled }: Props) 
       startedRef.current = Date.now();
       setElapsed(0);
       setRecording(true);
+      // iOS can deliver no buffers, or only silent ones. Bail out early instead of uploading nothing.
+      watchRef.current = setTimeout(() => {
+        if (chunksRef.current.length === 0 || peakRef.current < SILENCE_PEAK) {
+          finish(false);
+          onError('no_audio');
+        }
+      }, WATCHDOG_MS);
       tickRef.current = setInterval(() => {
         const ms = Date.now() - startedRef.current;
         setElapsed(Math.min(ms, MAX_MS));
