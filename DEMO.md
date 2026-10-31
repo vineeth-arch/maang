@@ -155,6 +155,24 @@ SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, MERCHANT_KEY, RESET_KEY, NEXT_PUBLIC_BA
 ## Voice lane
 Merged at 2ad1a73: lib/voice.ts exports sarvamLane. Rollback: set SARVAM_EXTRACT_MODE=rules and redeploy; if speech fails, restore `export { stubLane as voice } from "./voice-stub"` in lib/voice.ts and redeploy.
 
+## Device acceptance (release gate)
+
+No release ships until every row below passes on real hardware. Simulated browsers (Chromium, WebKit under Playwright) do not count for this table.
+
+| Scenario | Device / OS | Browser | Expected | Result | Telemetry line seen (Y/N) | Date |
+|---|---|---|---|---|---|---|
+| iPhone Safari | | Safari | Mic permission prompt appears once; a spoken request uploads, the transcript and extracted item reach the review screen | | | |
+| Android Chrome | | Chrome | Same as iPhone: prompt, upload, transcript and extracted item on the review screen | | | |
+| In-app browser (Instagram or WhatsApp) | | Instagram or WhatsApp in-app | "Safari ya Chrome" banner with a copy-link button; typed box visible and usable | | | |
+| Permission denied | | any | "Mic ki permission nahi mili..." line; typed box visible and usable; no upload | | | |
+| 1-second tap | | any | If the recording is under 0.5 s: "Bahut chhota tha..." line and no upload; a tap of about 1 s either reaches review or shows its own Hinglish line | | | |
+| Noisy room | | any | Transcript reaches the review screen, or "Awaaz samajh nahi aayi..." with the typed box usable | | | |
+| Typed fallback after a voice failure | | any | After any voice error above, typing the request and submitting still creates the request and opens the status page | | | |
+
+Fill Device / OS, Result (pass or fail with a note), Telemetry and Date by hand at each release. Leave a failed row visible; do not delete it.
+
+Telemetry: the capture page sends `POST /api/capture/telemetry` on voice events. In Vercel, open the project's function logs and filter for lines starting `[telemetry]`. They carry no audio, no transcript text and no phone number. Mark "Telemetry line seen" Y only if a `[telemetry]` line for that attempt appears.
+
 ## Freeze
 Frozen at tag demo-v1. Any later change goes on a hotfix/* branch and merges only if smoke passes again.
 
