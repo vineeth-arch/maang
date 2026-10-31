@@ -7,6 +7,9 @@ MAANG captures the sale that did not happen. The customer says what the shop did
 - Status page (example shape): https://maang-alpha.vercel.app/r/<request-id>?t=<token>. You get this link right after submitting on the capture page.
 - Merchant board: https://maang-alpha.vercel.app/m/neighbourhood-toys?k=<MERCHANT_KEY from .env.local>
 - Printable counter QR: https://maang-alpha.vercel.app/m/neighbourhood-toys/qr
+- Insights (MAC-4, small tier): https://maang-alpha.vercel.app/m/neighbourhood-toys/insights?k=<MERCHANT_KEY>
+- Who are you? (merchant size): https://maang-alpha.vercel.app/m/neighbourhood-toys/settings?k=<MERCHANT_KEY>
+- Insights data: 30 days of synthetic demand plus live requests; reset re-seeds it. Store 1 seeds as small tier; pick another band on "Who are you?" to see the medium view (table, day and hour charts, CSV).
 
 ## Reset demo data (before each judge run)
 ```bash
