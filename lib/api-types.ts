@@ -175,4 +175,6 @@ export type CloseBody = { reason: CloseReason };
 export type CloseResponse = { result: string; status: RequestStatus };
 
 // POST /api/admin/reset  (header x-reset-key)
-export type ResetResponse = { ok: true; counts: { products: number; requests: number; reservations: number; events: number } };
+export type ResetCounts = { products: number; requests: number; reservations: number; events: number };
+// counts = store 1 (neighbourhood-toys); store2 = electronics-andheri.
+export type ResetResponse = { ok: true; counts: ResetCounts; store2?: ResetCounts | null };

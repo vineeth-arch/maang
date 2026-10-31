@@ -68,7 +68,17 @@ function blankExtraction(text: string): ExtractedRequest {
   };
 }
 
-export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; shopName: string }) {
+export default function CaptureFlow({
+  shopSlug,
+  shopName,
+  subtitle,
+  example,
+}: {
+  shopSlug: string;
+  shopName: string;
+  subtitle?: string;
+  example?: string;
+}) {
   const router = useRouter();
   const [stage, setStage] = useState<Stage>('capture');
   const [text, setText] = useState('');
@@ -313,6 +323,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[15px] font-medium">{shopName}</p>
+          {subtitle && <p className="mt-0.5 text-[13px] text-muted">{subtitle}</p>}
           <p className="mt-1 inline-block rounded-md border border-line px-2 py-0.5 text-[12px] text-muted">
             Demo shop: synthetic data
           </p>
@@ -363,7 +374,7 @@ export default function CaptureFlow({ shopSlug, shopName }: { shopSlug: string; 
                   defaultValue="" // draftRef is always '' when this mounts: startOver is the only way back and clears it
                   onChange={(e) => (draftRef.current = e.target.value)}
                   rows={4}
-                  placeholder="Remote wali gaadi, rechargeable, 1000 ke andar, kal tak"
+                  placeholder={example ?? 'Remote wali gaadi, rechargeable, 1000 ke andar, kal tak'}
                   className={`${fieldBase} resize-none bg-white/60 p-4 leading-relaxed`}
                 />
                 <button

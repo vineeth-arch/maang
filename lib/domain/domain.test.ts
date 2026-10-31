@@ -140,3 +140,21 @@ test('format helpers', () => {
   assert.equal(formatINR(100000), '₹1,00,000');
   assert.equal(formatRs(1299), 'Rs 1,299');
 });
+
+test('alignToCatalog snaps spoken constraints to catalogue tags, same item only', async () => {
+  const { alignToCatalog } = await import('./align');
+  const tvs = [{ item_key: 'tv', tags: ['size:55_inch', 'wall_mount'] }, { item_key: 'tv', tags: ['size:55_inch'] }];
+  for (const hc of [['size:55 inch'], ['size:55 inches'], []]) {
+    const tv = alignToCatalog({ item_key: 'tv', hard_constraints: hc, source_text: '55 inch ka TV, wall mount ke saath' }, tvs);
+    assert.deepEqual(tv.hard_constraints, ['size:55_inch', 'wall_mount'], JSON.stringify(hc));
+  }
+  const lap = alignToCatalog({ item_key: 'laptop', hard_constraints: ['16gb_ram'], source_text: 'laptop 16 GB RAM' }, [{ item_key: 'laptop', tags: ['16_gb_ram'] }]);
+  assert.deepEqual(lap.hard_constraints, ['16_gb_ram']);
+  const puz = alignToCatalog({ item_key: 'jigsaw_puzzle', hard_constraints: ['pieces:1000'], source_text: '1000 pieces, 500 rupaye' }, [{ item_key: 'jigsaw_puzzle', tags: ['pieces:500'] }]);
+  assert.deepEqual(puz.hard_constraints, ['pieces:1000']);
+  const other = alignToCatalog({ item_key: 'jigsaw_puzzle', hard_constraints: ['pieces:1000'], source_text: 'wall mount' }, tvs);
+  assert.deepEqual(other.hard_constraints, ['pieces:1000']);
+  const rc = alignToCatalog({ item_key: 'rc_car', hard_constraints: ['rechargeable'], source_text: 'rechargeable car' },
+    [{ item_key: 'rc_car', tags: ['rechargeable'] }, { item_key: 'rc_car', tags: ['disposable_batteries'] }]);
+  assert.deepEqual(rc.hard_constraints, ['rechargeable']);
+});

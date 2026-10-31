@@ -1,7 +1,7 @@
 import { json, jsonError } from '@/lib/http';
 import { voice } from '@/lib/voice';
 import { extractRules } from '@/lib/voice-fallback';
-import { todayIST } from '@/lib/domain';
+import { todayIST, alignToCatalog } from '@/lib/domain';
 import { getShop, getProducts } from '@/lib/server/repo';
 import { extractBodySchema } from '@/lib/server/schemas';
 import { readJson, safe, notFound } from '@/lib/server/route';
@@ -19,15 +19,17 @@ export async function POST(req: Request) {
     const today = todayIST();
     // Extraction must never fail the customer: if the DB is unreachable, extract without catalogue hints.
     let hints: { item_keys: string[] } | undefined;
+    let products: Awaited<ReturnType<typeof getProducts>> = [];
     try {
       const shop = await getShop(shopSlug);
       if (!shop) return notFound();
-      hints = { item_keys: [...new Set((await getProducts(shop.id)).map((p) => p.item_key))] };
+      products = await getProducts(shop.id);
+      hints = { item_keys: [...new Set(products.map((p) => p.item_key))] };
     } catch (e) {
       console.error('[api] extract: catalogue lookup failed, continuing without hints:', (e as Error).message);
     }
 
-    if (mode === 'rules') return json(extractRules(text, today, hints));
+    if (mode === 'rules') return json(alignToCatalog(extractRules(text, today, hints), products));
 
     try {
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -36,13 +38,13 @@ export async function POST(req: Request) {
       });
       try {
         const out: ExtractedRequest = await Promise.race([voice.extract(text, today, hints), timeout]);
-        return json(out);
+        return json(alignToCatalog(out, products));
       } finally {
         if (timer) clearTimeout(timer);
       }
     } catch {
       const fallback: ExtractedRequest = { ...extractRules(text, today, hints), mode: 'rules_fallback' };
-      return json(fallback);
+      return json(alignToCatalog(fallback, products));
     }
   });
 }

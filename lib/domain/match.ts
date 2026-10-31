@@ -17,6 +17,7 @@ function missingReason(c: string, product: Product): Reason {
       return { code, text: `has ${have.slice('pieces:'.length)} pieces, customer needs ${c.slice('pieces:'.length)}` };
     }
   }
+  if (c === 'wall_mount') return { code, text: 'has no wall mount kit, customer needs wall mount' };
   return { code, text: `does not meet: ${c}` };
 }
 
