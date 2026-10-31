@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
-import { resolve, extname, basename } from 'node:path';
+import { resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { sarvamLane } from '../../lib/sarvam';
 // Rules mode scores the app's own rules engine (the one app/api/capture/extract uses), not lib/sarvam/rules.
@@ -140,7 +140,9 @@ async function main() {
       await audio(String(c.id), file, c.expected, latencies);
     }
     const real = resolve(root, 'audio/real');
-    for (const name of readdirSync(real).filter(n => !n.endsWith('.16k.wav') && /\.(wav|m4a|mp3|aac|aiff?|caf|flac|ogg|mp4)$/i.test(n))) await audio(`real:${basename(name, extname(name))}`, resolve(real, name), {}, {});
+    // Real clip ids are anonymous (sorted file order) so file names never reach RESULTS.md or measurements.json.
+    const realClips = readdirSync(real).filter(n => !n.endsWith('.16k.wav') && /\.(wav|m4a|mp3|aac|aiff?|caf|flac|ogg|mp4)$/i.test(n)).sort();
+    for (const [i, name] of realClips.entries()) await audio(`real:clip-${String(i + 1).padStart(2, '0')}`, resolve(real, name), {}, {});
   }
   report();
   gate();
