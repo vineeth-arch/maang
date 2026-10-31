@@ -12,7 +12,7 @@ const CLOSE_TEXT: Record<CloseReason, string> = {
 };
 
 const btnDark =
-  'min-h-12 rounded-md bg-ink px-6 text-[16px] font-medium text-white transition-transform active:scale-[0.98] disabled:opacity-50';
+  'min-h-12 rounded-md bg-primary px-6 text-[16px] font-medium text-white transition-transform active:scale-[0.98] disabled:opacity-50';
 const btnLine =
   'min-h-12 rounded-md border border-line px-6 text-[16px] transition-transform active:scale-[0.98] disabled:opacity-50';
 

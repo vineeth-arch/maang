@@ -8,12 +8,20 @@ export default function Home() {
       <p className="text-lg text-muted">
         Payments show what sold. MAANG shows what customers tried to buy.
       </p>
-      <Link
-        href="/s/neighbourhood-toys"
-        className="inline-flex min-h-12 w-fit items-center rounded-full bg-ink px-6 text-bg"
-      >
-        Demo shop: Neighbourhood Toys (demo)
-      </Link>
+      <div className="flex flex-wrap gap-3">
+        <Link
+          href="/s/neighbourhood-toys"
+          className="inline-flex min-h-12 w-fit items-center rounded-full bg-ink px-6 text-bg"
+        >
+          Demo shop: Neighbourhood Toys (demo)
+        </Link>
+        <Link
+          href="/s/electronics-andheri"
+          className="inline-flex min-h-12 w-fit items-center rounded-full bg-ink px-6 text-bg"
+        >
+          Demo store 2: Galaxy Digital, Andheri (electronics chain)
+        </Link>
+      </div>
     </main>
   );
 }

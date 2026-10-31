@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
-import { buildInsights, tierFor, TIER_INFO, type DemandEvent, type Insights, type Tier } from '@/lib/insights-entry';
-import { BANDS, type BandId } from '@/lib/tier-bands';
+import { buildInsights, tierFor, type DemandEvent, type Insights, type Tier } from '@/lib/insights-entry';
+import { BANDS, MODULES, type BandId } from '@/lib/tier-bands';
 import { getShopRequests, type Shop } from './repo';
 
 // ponytail: profile and synthetic history live as events rows (types 'profile', 'demand') because this lane
@@ -9,7 +9,9 @@ import { getShopRequests, type Shop } from './repo';
 export type Profile = { annual_revenue_band: BandId; locations: number; tier: Tier };
 export type InsightsResponse = { shop: { slug: string; name: string }; profile: Profile; modules: string[]; insights: Insights };
 
+const STORE2_SLUG = 'electronics-andheri';
 const SEED_PROFILES: Record<string, Profile> = {
+  [STORE2_SLUG]: { annual_revenue_band: 'over_50cr', locations: 3, tier: 'very_large' },
   'neighbourhood-toys': { annual_revenue_band: 'under_40l', locations: 1, tier: 'small' },
 };
 
@@ -69,7 +71,7 @@ export async function insightsFor(shop: Shop): Promise<InsightsResponse> {
   return {
     shop: { slug: shop.slug, name: shop.name },
     profile,
-    modules: TIER_INFO[profile.tier].modules,
+    modules: MODULES[profile.tier],
     insights: buildInsights(events, { today: new Date(), tier: profile.tier }),
   };
 }
@@ -78,7 +80,9 @@ export async function insightsFor(shop: Shop): Promise<InsightsResponse> {
 
 type Spec = { key: string; label: string; category: string; base: number; spread: number; perDay: (d: number) => number; store?: (d: number, k: number) => string };
 const HOURS = [11, 13, 15, 17, 18, 19, 19, 20, 20, 21];
-const STORES: Record<string, string> = {};
+const STORES: Record<string, string> = { andheri: 'Andheri', powai: 'Powai', noida: 'Noida' };
+const ROT = ['andheri', 'powai', 'noida'];
+const rot = (d: number, k: number) => ROT[(d + k) % 3];
 
 const S1: Spec[] = [
   { key: 'rc_car', label: 'Rechargeable RC car', category: 'toys', base: 800, spread: 400, perDay: (d) => (d <= 7 ? 3 : d % 3 === 0 ? 1 : 0) },
@@ -86,6 +90,14 @@ const S1: Spec[] = [
   { key: 'cricket_bat', label: 'Cricket bat', category: 'sports', base: 600, spread: 600, perDay: (d) => (d % 2 === 0 ? 1 : 0) },
   { key: 'camera_drone', label: 'Camera drone', category: 'toys', base: 3000, spread: 1, perDay: (d) => (d === 18 ? 1 : 0) },
 ];
+const S2: Spec[] = [
+  { key: 'tv', label: 'Smart TV 43 inch', category: 'electronics', base: 30000, spread: 30000, perDay: (d) => (d <= 7 ? 4 : 1), store: rot },
+  { key: 'samsung_galaxy', label: 'Samsung Galaxy phone', category: 'electronics', base: 15000, spread: 15000, perDay: (d) => (d <= 7 ? 3 : d % 2 === 0 ? 1 : 0), store: rot },
+  { key: 'earbuds', label: 'Wireless earbuds', category: 'accessories', base: 1500, spread: 1500, perDay: () => 2, store: rot },
+  // Laptops: Noida 2 a day, Powai every 2nd day, Andheri every 3rd day.
+  { key: 'laptop', label: 'Laptop', category: 'computers', base: 50000, spread: 30000, perDay: (d) => 2 + (d % 2 === 0 ? 1 : 0) + (d % 3 === 0 ? 1 : 0), store: (d, k) => (k <= 2 ? 'noida' : k === 3 && d % 2 === 0 ? 'powai' : 'andheri') },
+];
+
 function history(shopId: string, specs: Spec[], todayISO: string) {
   const midnight = Date.parse(`${todayISO}T00:00:00+05:30`);
   const rows: Array<{ shop_id: string; request_id: null; type: 'demand'; payload: HistoryPayload; created_at: string }> = [];
@@ -132,5 +144,24 @@ export async function seedInsights(): Promise<{ demand: number }> {
   ];
   const { error: ei } = await c.from('events').insert(rows);
   if (ei) throw new Error(`seed insert: ${ei.message}`);
+  return { demand: rows.length - 1 };
+}
+
+// Store 2 (electronics-andheri) catalog and live requests are seeded by lib/server/store2.ts.
+// This adds only its 30-day branch history and very_large profile; call after resetStore2(), which clears its events.
+export async function seedStore2History(): Promise<{ demand: number }> {
+  const c = db();
+  const { data: shop, error: es } = await c.from('shops').select('id').eq('slug', STORE2_SLUG).single();
+  if (es) throw new Error(`store2: ${es.message}`);
+  const id = shop.id as string;
+  const { error: ed } = await c.from('events').delete().eq('shop_id', id).in('type', ['demand', 'profile']);
+  if (ed) throw new Error(`store2 clear: ${ed.message}`);
+  const today = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
+  const rows = [
+    ...history(id, S2, today),
+    { shop_id: id, request_id: null, type: 'profile' as const, payload: SEED_PROFILES[STORE2_SLUG], created_at: new Date().toISOString() },
+  ];
+  const { error: ei } = await c.from('events').insert(rows);
+  if (ei) throw new Error(`store2 history: ${ei.message}`);
   return { demand: rows.length - 1 };
 }

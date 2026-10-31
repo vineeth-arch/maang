@@ -5,6 +5,11 @@ const ITEM_NAMES: Record<string, string> = {
   gift_hamper: 'Gift hamper',
   jigsaw_puzzle: 'Jigsaw puzzle',
   cricket_bat: 'Cricket bat',
+  samsung_galaxy: 'Samsung Galaxy phone',
+  tv: 'TV',
+  earbuds: 'Earbuds',
+  laptop: 'Laptop',
+  inverter_ac: 'Inverter AC',
 };
 
 export function budgetBucket(max: number | null): string {
@@ -47,7 +52,7 @@ export function clusterLabel(item_key: string, hard_constraints: string[], bucke
   if (prefixes.length > 0) {
     const second = itemName.charAt(1);
     const lowered =
-      second !== '' && second === second.toUpperCase() && second !== second.toLowerCase()
+      (second !== '' && second === second.toUpperCase() && second !== second.toLowerCase()) || itemName.startsWith('Samsung')
         ? itemName
         : itemName.charAt(0).toLowerCase() + itemName.slice(1);
     const joined = `${prefixes.join(' ')} ${lowered}`;

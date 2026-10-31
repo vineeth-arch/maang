@@ -100,7 +100,10 @@ export function buildInsights(events: DemandEvent[], opts: { today: Date; tier: 
     const linked = upcoming
       .filter((u) => category && u.categories.includes(category) && u.days_away <= u.window_days_before)
       .map((u) => ({ id: u.id, name: u.name, days_away: u.days_away }));
-    const label = rows[rows.length - 1].item_label;
+    // Most common label, so one odd customer phrasing doesn't rename the item.
+    const counts = new Map<string, number>();
+    for (const e of rows) counts.set(e.item_label, (counts.get(e.item_label) ?? 0) + 1);
+    const label = [...counts].sort((a, b) => b[1] - a[1])[0][0];
 
     let recommendation: ItemInsight['recommendation'];
     let reason: string;

@@ -26,3 +26,4 @@ export * from './expiry';
 export * from './match';
 export * from './status';
 export * from './format';
+export * from './align';

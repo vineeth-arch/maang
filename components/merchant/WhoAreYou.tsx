@@ -22,6 +22,7 @@ export function WhoAreYou({ shop, k }: { shop: string; k: string }) {
   const [band, setBand] = useState<BandId>('under_40l');
   const [locations, setLocations] = useState(1);
   const [msg, setMsg] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const base = `/api/merchant/${encodeURIComponent(shop)}`;
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export function WhoAreYou({ shop, k }: { shop: string; k: string }) {
       .then((d) => {
         setBand(d.profile.annual_revenue_band);
         setLocations(d.profile.locations);
+        setLoaded(true);
       })
       .catch(() => setMsg('Could not load your current size.'));
   }, [base, k]);
@@ -62,7 +64,7 @@ export function WhoAreYou({ shop, k }: { shop: string; k: string }) {
         </div>
       </fieldset>
       <label className="label-mono mt-6 block text-board-fg/80" htmlFor="locs">Number of locations</label>
-      <input id="locs" type="number" min={1} max={5000} value={locations} onChange={(e) => setLocations(Math.max(1, parseInt(e.target.value, 10) || 1))}
+      <input id="locs" type="number" min={1} max={5000} value={locations} onChange={(e) => setLocations(Math.min(5000, Math.max(1, parseInt(e.target.value, 10) || 1)))}
         className="mt-1 min-h-12 w-32 rounded-md border border-board-fg/40 bg-board-bg px-3 text-board-fg" />
 
       <section className="mt-6 rounded-lg border border-board-fg/30 p-4" aria-live="polite">
@@ -78,7 +80,7 @@ export function WhoAreYou({ shop, k }: { shop: string; k: string }) {
       </section>
 
       <div className="mt-6 flex flex-wrap gap-3">
-        <button type="button" onClick={() => void save()} className="label-mono min-h-12 rounded-md bg-board-fg px-4 text-board-bg">Save</button>
+        <button type="button" disabled={!loaded} onClick={() => void save()} className="label-mono min-h-12 rounded-md bg-board-fg px-4 text-board-bg disabled:opacity-60">Save</button>
         <a href={`/m/${encodeURIComponent(shop)}/insights?k=${encodeURIComponent(k)}`} className="label-mono flex min-h-12 items-center rounded-md border border-board-fg/40 px-4">Back to insights</a>
       </div>
       {msg && <p role="status" className="mt-3">{msg}</p>}

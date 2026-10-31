@@ -7,14 +7,14 @@ import { TIER_INFO, type ItemInsight } from '@/lib/insights-entry';
 import type { InsightsResponse } from '@/lib/server/insights';
 
 const REC: Record<ItemInsight['recommendation'], { text: string; cls: string }> = {
-  restock_now: { text: 'Restock now', cls: 'border-insights-teal bg-insights-teal text-white' },
-  watch: { text: 'Watch', cls: 'border-insights-amber/30 bg-insights-amber-soft text-insights-amber' },
+  restock_now: { text: 'Restock now', cls: 'border-rising bg-rising text-white' },
+  watch: { text: 'Watch', cls: 'border-insights-amber/30 bg-insights-amber-soft text-[#8F5500]' },
   skip: { text: 'Skip', cls: 'border-insights-border bg-insights-canvas text-insights-muted' },
 };
 const TREND = {
-  rising: { label: '↑ Rising', cls: 'bg-insights-green-soft text-insights-green' },
+  rising: { label: '↑ Rising', cls: 'bg-insights-green-soft text-rising-text' },
   steady: { label: '→ Steady', cls: 'bg-insights-canvas text-insights-muted' },
-  falling: { label: '↓ Falling', cls: 'bg-insights-coral-soft text-insights-coral' },
+  falling: { label: '↓ Falling', cls: 'bg-insights-coral-soft text-[#B83A3A]' },
 } as const;
 const hourLabel = (h: number | null) => (h === null ? '–' : `${((h + 11) % 12) + 1} ${h < 12 ? 'am' : 'pm'}`);
 
@@ -28,14 +28,14 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
   );
 }
 
-function Bars({ data, label, marks, tone = 'teal' }: { data: { x: string; n: number }[]; label: string; marks?: { at: number; name: string }[]; tone?: 'teal' | 'cobalt' | 'rose' }) {
+function Bars({ data, label, marks, tone = 'teal', compact }: { data: { x: string; n: number }[]; label: string; marks?: { at: number; name: string }[]; tone?: 'teal' | 'cobalt' | 'rose'; compact?: boolean }) {
   const max = Math.max(1, ...data.map((d) => d.n));
   const w = 10;
   const H = 100;
   const fill = tone === 'teal' ? 'var(--insights-teal)' : tone === 'cobalt' ? 'var(--insights-cobalt)' : 'var(--insights-rose)';
   return (
     <figure>
-      <svg role="img" aria-label={label} viewBox={`0 0 ${data.length * w} ${H + 14}`} className="h-40 w-full" preserveAspectRatio="none">
+      <svg role="img" aria-label={label} viewBox={`0 0 ${data.length * w} ${H + 14}`} className={`${compact ? 'h-24' : 'h-40'} w-full`} preserveAspectRatio="none">
         {data.map((d, i) => {
           const h = (d.n / max) * H;
           return (
@@ -58,7 +58,11 @@ function Bars({ data, label, marks, tone = 'teal' }: { data: { x: string; n: num
 
 function csv(items: ItemInsight[]): string {
   const head = ['item', 'category', 'requests_7d', 'requests_prev_7d', 'requests_30d', 'trend', 'median_budget_inr', 'demand_value_inr', 'event', 'recommendation', 'reason'];
-  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // Leading = + - @ would run as a formula in Excel.
+  const esc = (v: unknown) => {
+    const t = String(v ?? '');
+    return `"${(/^[=+\-@]/.test(t) ? `'${t}` : t).replace(/"/g, '""')}"`;
+  };
   const rows = items.map((i) => [i.item_label, i.category, i.requests_7d, i.requests_prev_7d, i.requests_30d, i.trend, i.budget_median_inr, i.demand_value_inr, i.events[0]?.name, i.recommendation, i.reason].map(esc).join(','));
   return [head.join(','), ...rows].join('\n');
 }
@@ -100,6 +104,8 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
 
   async function speak() {
     setSay('Playing…');
+    // Create the audio element during the click so Safari/iOS keep user-gesture permission.
+    const a = new Audio();
     try {
       const r = await fetch(`/api/merchant/${encodeURIComponent(shop)}/speak${q}`, {
         method: 'POST',
@@ -108,7 +114,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
       });
       if (!r.ok) throw new Error(String(r.status));
       const url = URL.createObjectURL(await r.blob());
-      const a = new Audio(url);
+      a.src = url;
       a.onended = () => URL.revokeObjectURL(url);
       await a.play();
       setSay(null);
@@ -124,11 +130,16 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
     a.href = url;
     a.download = `${shop}-insights.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  const dayIdx = new Map(ins.daily.map((d, i) => [d.date, i]));
-  const marks = ins.upcoming.flatMap((u) => (dayIdx.has(u.date) ? [{ at: dayIdx.get(u.date)!, name: u.name }] : []));
+  const nextEv = ins.upcoming.find((u) => u.days_away > 0 && u.days_away <= 10);
+  const ahead = Array.from({ length: nextEv?.days_away ?? 0 }, (_, i) => {
+    const d = new Date(Date.parse(ins.daily[ins.daily.length - 1].date) + (i + 1) * 86_400_000).toISOString().slice(0, 10);
+    return { x: d.slice(5), n: 0 };
+  });
+  const dailyBars = [...ins.daily.map((d) => ({ x: d.date.slice(5), n: d.count })), ...ahead];
+  const marks = nextEv ? [{ at: dailyBars.length - 1, name: nextEv.name }] : [];
 
   return (
     <main className="min-h-screen bg-insights-canvas px-4 py-6 text-insights-ink sm:px-8 sm:py-8 xl:px-12">
@@ -156,7 +167,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
           {ins.upcoming.map((u, index) => (
             <li key={u.id} className={`min-w-40 shrink-0 rounded-insights-card border p-3.5 shadow-insights-card ${index === 0 ? 'border-insights-saffron/35 bg-insights-saffron-soft' : 'border-insights-border bg-insights-surface'}`}>
               <p className="font-display text-lg font-semibold text-insights-ink">{u.name}</p>
-              <p className="label-mono mt-1 text-insights-saffron">{u.days_away === 0 ? 'Today' : `In ${u.days_away} days`}</p>
+              <p className="label-mono mt-1 text-[#8F5500]">{u.days_away === 0 ? 'Today' : `In ${u.days_away} days`}</p>
             </li>
           ))}
           {ins.upcoming.length === 0 && <li className="text-insights-muted">No festivals or sales soon.</li>}
@@ -206,7 +217,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
                 </div>
               </div>
               {i.urgent_lost > 0 && (
-                <p className="label-mono mt-3 inline-flex rounded-full border border-insights-coral/20 bg-insights-coral-soft px-3 py-1.5 text-insights-coral">
+                <p className="label-mono mt-3 inline-flex rounded-full border border-insights-coral/20 bg-insights-coral-soft px-3 py-1.5 text-[#B83A3A]">
                   {i.urgent_lost} urgent {i.urgent_lost === 1 ? 'request' : 'requests'} lost
                 </p>
               )}
@@ -234,7 +245,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
                     <td className="pr-3"><span className={`label-mono rounded-full px-2 py-1 ${TREND[i.trend].cls}`}>{TREND[i.trend].label}</span></td>
                     <td className="pr-3">{i.budget_median_inr === null ? '–' : formatINR(i.budget_median_inr)}</td>
                     <td className="pr-3">{formatINR(i.demand_value_inr)}</td>
-                    <td className="pr-3">{i.events[0] ? <span className="rounded-full bg-insights-saffron-soft px-2 py-1 text-insights-amber">{i.events[0].name} ({i.events[0].days_away}d)</span> : '–'}</td>
+                    <td className="pr-3">{i.events[0] ? <span className="rounded-full bg-insights-saffron-soft px-2 py-1 text-[#8F5500]">{i.events[0].name} ({i.events[0].days_away}d)</span> : '–'}</td>
                     <td className="pr-3"><span className={`label-mono rounded-full border px-2 py-1 ${REC[i.recommendation].cls}`}>{REC[i.recommendation].text}</span></td>
                   </tr>
                 ))}
@@ -248,8 +259,8 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
       )}
 
       {has('daily') && (
-        <Section title="Requests per day" hint={`Last 30 days${marks.length ? '. Dashed line: festival' : ''}`}>
-          <Bars label="Requests per day, last 30 days" data={ins.daily.map((d) => ({ x: d.date.slice(5), n: d.count }))} marks={marks} tone="teal" />
+        <Section title="Requests per day" hint={`Last 30 days${nextEv ? `. Dashed line: ${nextEv.name}` : ''}`}>
+          <Bars label={`Requests per day, last 30 days${nextEv ? `, then days until ${nextEv.name}` : ''}`} data={dailyBars} marks={marks} tone="teal" compact={data.profile.tier === 'small'} />
         </Section>
       )}
 
@@ -264,7 +275,7 @@ export function Insights({ shop, k }: { shop: string; k: string }) {
           <ul className="space-y-2">
             {stores.map((s) => (
               <li key={s.store_id}>
-                <p className="label-mono text-insights-muted">{s.store_label}: <span className="font-semibold text-insights-cobalt">{s.count}</span></p>
+                <p className="label-mono text-insights-muted">{s.store_label}: <span className="font-semibold text-[#3A64B5]">{s.count}</span></p>
                 <div className="mt-1 h-3 overflow-hidden rounded-full bg-insights-canvas">
                   <div className="h-full rounded-full bg-insights-cobalt" style={{ width: `${(s.count / Math.max(...stores.map((x) => x.count))) * 100}%` }} />
                 </div>

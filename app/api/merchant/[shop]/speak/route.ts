@@ -25,11 +25,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ shop: s
     const { shop: slug } = await params;
     const shop = await authShop(req, slug);
     if (shop instanceof Response) return shop;
-    if (rateLimited(`speak:${shop.id}`, 1, 3000)) return jsonError(429, 'rate_limited');
-
     const parsed = speakSchema.safeParse(await readJson(req));
     if (!parsed.success) return jsonError(400, 'bad_request');
     const body = parsed.data;
+    // The insight button has its own limiter so it never collides with new-request announcements.
+    if (rateLimited(`speak:${body.kind === 'insight' ? 'insight:' : ''}${shop.id}`, 1, 3000)) return jsonError(429, 'rate_limited');
 
     let text: string;
     if (body.kind === 'new') {
