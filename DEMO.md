@@ -11,9 +11,19 @@ MAANG captures the sale that did not happen. The customer says what the shop did
 - Who are you? (merchant size): https://maang-alpha.vercel.app/m/neighbourhood-toys/settings?k=<MERCHANT_KEY>
 - Insights data: 30 days of synthetic demand plus live requests; reset re-seeds it. Store 1 seeds as small tier; pick another band on "Who are you?" to see the medium view (table, day and hour charts, CSV).
 
+## Store 2: Galaxy Digital, Andheri (MAC-3)
+Fictional electronics chain branch ("branch 1 of many"), synthetic data only. Same loop, same merchant key.
+- Customer capture: https://maang-alpha.vercel.app/s/electronics-andheri
+- Merchant board: https://maang-alpha.vercel.app/m/electronics-andheri?k=<MERCHANT_KEY>
+- Printable counter QR: https://maang-alpha.vercel.app/m/electronics-andheri/qr
+- Insights (MAC-4, very large tier, 3 branches): https://maang-alpha.vercel.app/m/electronics-andheri/insights?k=<MERCHANT_KEY>
+- Seeded clusters: Samsung Galaxy 256 GB blue (6, 2 due tomorrow), 55 inch TV with wall mount under ₹45,000 (4, Sunday), noise cancelling earbuds under ₹3,000 (3), 16 GB RAM laptop under ₹60,000 (3, by Monday). The urgent 1.5 ton AC for today is closed as "cannot meet deadline". The in-stock 55 inch TV at ₹42,000 is rejected on the board: no wall mount kit.
+- Spoken requests: item_key comes from the store's own catalogue, and constraints snap to its product tags, so "55 inch ka TV 45000 ke andar, wall mount ke saath" joins the seeded TV cluster. Say a budget for the laptop ("60000 ke andar"), or it starts its own cluster. Rules fallback has no electronics words, so without AI a store 2 request gets no item and is not clustered (typed item field shows).
+
 ## Reset demo data (before each judge run)
+Reseeds both stores. Prints store 1 counts (4 products, 6 requests) and store 2 counts (6 products, 17 requests).
 ```bash
-cd "/Users/vineethnair/Vibe Code/maang" && node --env-file=.env.local -e "fetch('https://maang-alpha.vercel.app/api/admin/reset',{method:'POST',headers:{'x-reset-key':process.env.RESET_KEY}}).then(r=>r.json()).then(j=>console.log(j.counts))"
+cd "/Users/vineethnair/Vibe Code/maang" && node --env-file=.env.local -e "fetch('https://maang-alpha.vercel.app/api/admin/reset',{method:'POST',headers:{'x-reset-key':process.env.RESET_KEY}}).then(r=>r.json()).then(j=>console.log(j.counts,j.store2))"
 ```
 Expected output: `{ products: 4, requests: 6, reservations: 0, events: 6 }`. The key is read from `.env.local` and never printed.
 
